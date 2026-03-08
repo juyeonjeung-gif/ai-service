@@ -4,16 +4,20 @@
 
 ```
 ai-service/
-├── docs/                        ← 설계 문서 (이 폴더가 수정되면 노션 자동 업데이트)
+├── docs/
 │   ├── erd/
-│   │   └── erd.md               ← ERD (데이터 구조 설계서)
+│   │   └── erd.md
 │   └── api/
-│       ├── openapi.yaml         ← API 명세 원본
-│       └── CHANGELOG.md         ← API 변경 이력 (비개발 인력용)
-├── src/                         ← 실제 코드 (개발팀 작업 공간)
-└── .github/
-    └── workflows/
-        └── sync-to-notion.yml   ← 자동화 설정 
+│       ├── openapi.yaml
+│       └── CHANGELOG.md
+├── src/                        ← 개발팀이 채워나갈 코드
+├── .github/
+│   └── workflows/
+│       ├── sync-to-notion.yml  ← 문서 변경 동기화 (이미 완성)
+│       ├── sync-issues.yml     ← Issue 동기화 (신규)
+│       ├── sync-release.yml    ← 배포 이력 동기화 (신규)
+│       └── test-notify.yml     ← 테스트 결과 알림 (신규)
+└── README.md
 ```
 
 ## 🔄 자동화 동작 방식
