@@ -3,21 +3,33 @@
 ## 📁 폴더 구조
 
 ```
-ai-service/
-├── docs/
-│   ├── erd/
-│   │   └── erd.md
-│   └── api/
-│       ├── openapi.yaml
-│       └── CHANGELOG.md
-├── src/                        ← 개발팀이 채워나갈 코드
+전체서비스/
+├── README.md
 ├── .github/
 │   └── workflows/
-│       ├── sync-to-notion.yml  ← 문서 변경 동기화 (이미 완성)
-│       ├── sync-issues.yml     ← Issue 동기화 (신규)
-│       ├── sync-release.yml    ← 배포 이력 동기화 (신규)
-│       └── test-notify.yml     ← 테스트 결과 알림 (신규)
-└── README.md
+│       ├── sync-to-notion.yml
+│       ├── sync-issues.yml
+│       ├── sync-release.yml
+│       └── test-notify.yml
+└── projects/
+    ├── 서비스 1/
+    │   ├── README.md
+    │   ├── docs/
+    │   │   ├── erd/
+    │   │   │   └── erd.md
+    │   │   └── api/
+    │   │       ├── openapi.yaml
+    │   │       └── CHANGELOG.md
+    │   └── src/
+    └── 서비스 2/
+        ├── README.md
+        ├── docs/
+        │   ├── erd/
+        │   │   └── erd.md
+        │   └── api/
+        │       ├── openapi.yaml
+        │       └── CHANGELOG.md
+        └── src/
 ```
 
 ## 🔄 자동화 동작 방식
