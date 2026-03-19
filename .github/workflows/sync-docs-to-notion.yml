@@ -1,0 +1,63 @@
+# 복사 위치: {project_br}/.github/workflows/sync-docs-to-notion.yml
+#
+# 동작:
+#   - {slug}/docs/erd/ 또는 {slug}/docs/api/ 하위 .md 파일 변경 시 실행
+#   - 변경된 파일에 대응하는 노션 설계 문서 섹션을 자동 갱신한다
+#
+# 사전 설정:
+#   - GitHub 레포지터리 Settings > Secrets and variables > Actions
+#     NOTION_API_KEY: Notion Integration 토큰
+#
+# 브랜치 전략:
+#   - 이 파일은 main 브랜치에 먼저 push 한다
+#   - design/** 브랜치는 main에서 분기하므로 자동으로 이 Actions를 상속한다
+
+name: Sync Docs to Notion
+
+on:
+  push:
+    branches:
+      - main
+      - "design/**"
+    paths:
+      - "**/docs/erd/*.md"
+      - "**/docs/api/*.md"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Get changed docs files
+        id: changed
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD \
+            | grep -E '.*/docs/(erd|api)/.*\.md$' \
+            | tr '\n' ' ')
+          echo "CHANGED_FILES=$CHANGED" >> "$GITHUB_ENV"
+          echo "Changed docs: $CHANGED"
+
+      - name: Skip if no relevant changes
+        if: env.CHANGED_FILES == ''
+        run: |
+          echo "No docs/erd or docs/api files changed. Skipping."
+          exit 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Sync to Notion
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          CHANGED_FILES: ${{ env.CHANGED_FILES }}
+        run: python .github/scripts/sync_to_notion.py

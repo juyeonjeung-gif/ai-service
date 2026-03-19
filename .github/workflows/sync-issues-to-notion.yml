@@ -1,0 +1,56 @@
+# 복사 위치: {project_br}/.github/workflows/sync-issues-to-notion.yml
+#
+# 동작:
+#   - GitHub Issues 이벤트 발생 시 노션 구축현황 DB에 기록
+#   - 이슈별 독립적인 행으로 기록 (같은 이슈번호면 업데이트)
+#
+# 라벨 규칙 (선택):
+#   - 'service:{slug}'  : 서비스명 지정  (예: service:jeongsong-bogoseo)
+#   - 'type:{이슈유형}' : 이슈 유형 지정 (예: type:기능오류)
+#   - 위 라벨 없으면 레포 이름이 서비스명으로 자동 사용됨
+
+name: Sync GitHub Issues to Notion 구축현황
+
+on:
+  issues:
+    types:
+      - opened
+      - edited
+      - closed
+      - reopened
+      - labeled
+      - unlabeled
+      - assigned
+      - unassigned
+
+jobs:
+  sync-to-notion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Sync issue to Notion 구축현황 DB
+        env:
+          NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+          NOTION_BUILD_DB_ID: "56659de7-3a4e-40ab-8858-a2a46953488a"
+          GH_ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GH_ISSUE_TITLE: ${{ github.event.issue.title }}
+          GH_ISSUE_URL: ${{ github.event.issue.html_url }}
+          GH_ISSUE_STATE: ${{ github.event.issue.state }}
+          GH_ISSUE_LABELS: ${{ toJSON(github.event.issue.labels) }}
+          GH_ISSUE_CREATED_AT: ${{ github.event.issue.created_at }}
+          GH_ISSUE_UPDATED_AT: ${{ github.event.issue.updated_at }}
+          GH_ISSUE_CLOSED_AT: ${{ github.event.issue.closed_at || '' }}
+          GH_REPO_NAME: ${{ github.event.repository.name }}
+          GH_EVENT_ACTION: ${{ github.event.action }}
+        run: python .github/scripts/sync_issue_to_notion.py
