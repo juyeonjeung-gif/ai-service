@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 2
 
@@ -42,21 +42,18 @@ jobs:
           echo "CHANGED_FILES=$CHANGED" >> "$GITHUB_ENV"
           echo "Changed docs: $CHANGED"
 
-      - name: Skip if no relevant changes
-        if: env.CHANGED_FILES == ''
-        run: |
-          echo "No docs/erd or docs/api files changed. Skipping."
-          exit 0
-
       - name: Set up Python
-        uses: actions/setup-python@v5
+        if: env.CHANGED_FILES != ''
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
       - name: Install dependencies
+        if: env.CHANGED_FILES != ''
         run: pip install requests
 
       - name: Sync to Notion
+        if: env.CHANGED_FILES != ''
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
           CHANGED_FILES: ${{ env.CHANGED_FILES }}
