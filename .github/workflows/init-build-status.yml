@@ -1,13 +1,13 @@
 name: Initialize Build Status in Notion
 
-# 설계 문서(ERD / API 명세)가 design/** 브랜치에 push될 때 실행
+# 설계 문서(ERD / API 명세)가 feature/** 브랜치에 push될 때 실행
 # - 노션 구축현황 DB에 서비스 페이지가 없으면 신규 생성
 # - 이미 존재하면 스킵 (idempotent)
 
 on:
   push:
     branches:
-      - "design/**"
+      - "feature/**"
     paths:
       - "**/docs/erd/*.md"
       - "**/docs/api/*.md"

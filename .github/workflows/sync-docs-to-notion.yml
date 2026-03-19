@@ -10,7 +10,7 @@
 #
 # 브랜치 전략:
 #   - 이 파일은 main 브랜치에 먼저 push 한다
-#   - design/** 브랜치는 main에서 분기하므로 자동으로 이 Actions를 상속한다
+#   - feature/** 브랜치는 main에서 분기하므로 자동으로 이 Actions를 상속한다
 
 name: Sync Docs to Notion
 
@@ -18,7 +18,7 @@ on:
   push:
     branches:
       - main
-      - "design/**"
+      - "feature/**"
     paths:
       - "**/docs/erd/*.md"
       - "**/docs/api/*.md"

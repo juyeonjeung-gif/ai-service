@@ -4,7 +4,7 @@ init_build_status.py
 ====================
 복사 위치: {project_br}/.github/scripts/init_build_status.py
 
-설계 문서(ERD / API 명세)가 design/** 브랜치에 push될 때 실행된다.
+설계 문서(ERD / API 명세)가 feature/** 브랜치에 push될 때 실행된다.
 노션 구축현황 DB에 해당 서비스 페이지가 없으면 신규 생성한다.
 이미 존재하면 스킵 (idempotent).
 
@@ -126,7 +126,7 @@ def main() -> None:
     # slug 추출
     slug = get_slug_from_branch(branch)
     if not slug:
-        print(f"[SKIP] design/** 브랜치가 아님: {branch}")
+        print(f"[SKIP] feature/** 브랜치가 아님: {branch}")
         sys.exit(0)
 
     # 서비스명 결정
