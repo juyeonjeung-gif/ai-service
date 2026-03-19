@@ -44,8 +44,8 @@ HEADERS = {
 # ─────────────────────────────────────────────
 
 def get_slug_from_branch(branch: str) -> str | None:
-    """'design/{slug}' 형식의 브랜치명에서 slug를 추출한다."""
-    m = re.match(r"design/(.+)", branch)
+    """'feature/{slug}' 형식의 브랜치명에서 slug를 추출한다."""
+    m = re.match(r"feature/(.+)", branch)
     return m.group(1) if m else None
 
 
@@ -66,6 +66,22 @@ def get_service_name(slug: str) -> str:
     return slug
 
 
+def get_build_type(slug: str) -> str:
+    """
+    {slug}/docs/.design-meta.json 에서 build_type을 읽어 노션 선택값으로 변환한다.
+    파일이 없거나 파싱 실패 시 "코드"를 반환한다.
+    """
+    meta_path = Path(f"{slug}/docs/.design-meta.json")
+    if meta_path.exists():
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+            bt = meta.get("build_type", "").strip().lower()
+            return {"n8n": "n8n", "code": "코드", "mixed": "혼합"}.get(bt, "코드")
+        except Exception as e:
+            print(f"[WARN] .design-meta.json 파싱 실패: {e}")
+    return "코드"
+
+
 def find_service_page(service_name: str) -> str | None:
     """구축현황 DB에서 서비스명이 일치하는 페이지 ID를 반환한다."""
     resp = requests.post(
@@ -83,7 +99,7 @@ def find_service_page(service_name: str) -> str | None:
     return results[0]["id"] if results else None
 
 
-def create_service_page(service_name: str, branch_url: str) -> str:
+def create_service_page(service_name: str, branch_url: str, build_type: str = "코드") -> str:
     """구축현황 DB에 새 서비스 페이지를 생성한다."""
     today = datetime.now().strftime("%Y-%m-%d")
 
@@ -91,7 +107,7 @@ def create_service_page(service_name: str, branch_url: str) -> str:
         "서비스명": {
             "title": [{"type": "text", "text": {"content": service_name}}]
         },
-        "구축 방식": {"select": {"name": "코드"}},
+        "구축 방식": {"select": {"name": build_type}},
         "상태":     {"select": {"name": "구축 중"}},
         "시작일":   {"date": {"start": today}},
     }
@@ -129,9 +145,10 @@ def main() -> None:
         print(f"[SKIP] feature/** 브랜치가 아님: {branch}")
         sys.exit(0)
 
-    # 서비스명 결정
+    # 서비스명 및 구축 방식 결정
     service_name = get_service_name(slug)
-    print(f"[INFO] slug={slug} | service_name={service_name}")
+    build_type   = get_build_type(slug)
+    print(f"[INFO] slug={slug} | service_name={service_name} | build_type={build_type}")
 
     # 이미 페이지가 있으면 스킵
     page_id = find_service_page(service_name)
@@ -140,7 +157,7 @@ def main() -> None:
         sys.exit(0)
 
     # 신규 생성
-    page_id = create_service_page(service_name, branch_url)
+    page_id = create_service_page(service_name, branch_url, build_type)
     print(f"[DONE] 구축현황 페이지 생성 완료: {page_id}")
     print(f"       서비스명: {service_name}")
     print(f"       GitHub 브랜치: {branch_url}")
