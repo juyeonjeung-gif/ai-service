@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-03-20T05:21:42.757Z",
+  "updatedAt": "2026-03-20T07:50:38.554Z",
   "createdAt": "2026-03-16T04:28:06.570Z",
   "id": "7ljk74wFhpvgz3jy",
   "name": "(정성보고서) 데이터기반행정 활용도 제고",
@@ -40,18 +40,180 @@
     },
     {
       "parameters": {
+        "content": "## II. 4. 데이터기반행정 활용도 제고\n### 첨부7 정성보고서 초안 자동 생성\n`파일 정규화 → Gemini 파일 업로드(Files API) → 요청 조립 → Gemini 내용 생성 → 역할분류+텍스트정리 → 취합 → 분류준비 → Gemini 실적분류+초안작성 → HTML 응답`\n\n**핵심 개선:** ① Task Runner 환경에서 binary 직접 처리 불가 → Files API 업로드 방식으로 전환 ② 파일명 기반 본체/보조자료 역할 분류 ③ 유형별 예시+선별기준 반영 ④ 텍스트 15,000자",
+        "height": 220,
+        "width": 2240,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        704,
+        432
+      ],
+      "id": "note-section4",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first();\n\n// 실제 폼 필드명으로 접근\nconst agencyName = inputItem.json['기관명을 입력하세요'] || '';\nconst uploadedFiles = inputItem.json['증적자료를 업로드하세요'] || [];\nconst binary = inputItem.binary || {};\nconst binaryKeys = Object.keys(binary);\n\nif (uploadedFiles.length === 0) throw new Error('업로드된 파일이 없습니다.');\n\nconst items = [];\nfor (let i = 0; i < uploadedFiles.length; i++) {\n  const binaryKey = binaryKeys[i];\n  if (!binaryKey) continue;\n  items.push({\n    json: {\n      fileIndex: i,\n      filename: uploadedFiles[i].filename,\n      agencyName,\n      totalFiles: uploadedFiles.length\n    },\n    binary: { data: binary[binaryKey] }\n  });\n}\n\nif (items.length === 0) throw new Error('바이너리 데이터를 찾을 수 없습니다.');\nreturn items;"
+      },
+      "id": "node-파일정규화",
+      "name": "파일 정규화",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "node-gemini-upload",
+      "name": "Gemini 파일 업로드",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        944,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gemini Files API 응답에서 file_uri 추출 + generateContent 요청 바디 조립\n// ※ JSON 전용 처리 — binary 접근 없음 (Task Runner 호환)\nconst results = [];\nconst uploadResults = $input.all();\nconst originalItems = $('파일 정규화').all();\n\nfor (let i = 0; i < uploadResults.length; i++) {\n  const uploadItem = uploadResults[i];\n  const originalItem = originalItems[i] || { json: {} };\n\n  const fileUri = uploadItem.json?.file?.uri;\n  const filename = originalItem.json.filename || `file_${i + 1}.pdf`;\n  const fileIndex = originalItem.json.fileIndex ?? i;\n  const agencyName = originalItem.json.agencyName ?? '';\n\n  if (!fileUri) {\n    throw new Error(`[${filename}] 파일 업로드 응답에 URI가 없습니다. 응답: ${JSON.stringify(uploadItem.json)}`);\n  }\n\n  const geminiRequestBody = {\n    contents: [{\n      parts: [\n        {\n          file_data: {\n            mime_type: 'application/pdf',\n            file_uri: fileUri\n          }\n        },\n        {\n          text: `파일명: \"${filename}\"\\n\\n이 PDF 파일의 전체 내용을 텍스트로 상세히 추출해주세요.\\n- 표가 있으면 표의 내용을 텍스트로 정리해주세요.\\n- 이미지·그래픽이 있으면 그 내용과 의미를 설명해주세요.\\n- 원문에 충실하게 추출하되, 레이아웃·페이지 구분 마크업은 생략해도 됩니다.\\n- 최대한 완전하게 추출해주세요.`\n        }\n      ]\n    }],\n    generationConfig: {\n      maxOutputTokens: 8192\n    }\n  };\n\n  results.push({\n    json: {\n      fileIndex,\n      filename,\n      agencyName,\n      fileUri,\n      geminiRequestBody\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "node-gemini-build",
+      "name": "Gemini 요청 조립",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.geminiRequestBody }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "node-gemini-gen",
+      "name": "Gemini 내용 생성",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1424,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Gemini generateContent 응답 파싱 + 파일 역할 판별 (본체 vs 보조자료)\nreturn $input.all().map(item => {\n  const filename = item.json.filename ?? '파일명 없음';\n\n  // Gemini API 응답에서 추출 텍스트 가져오기\n  const candidates = item.json.candidates;\n  let extractedText = '';\n  if (candidates?.[0]?.content?.parts?.[0]?.text) {\n    extractedText = candidates[0].content.parts[0].text;\n  }\n\n  // 파일 역할 판별: 파일명에 아래 키워드가 포함되면 보조자료(support)\n  const supportKeywords = [\n    '계획서', '계획(안)', '계획안', '결과요약서', '결과보고서',\n    '보고서(안)', '보조자료', '공문', '지침', '가이드', '증빙'\n  ];\n  const isSupport = supportKeywords.some(kw => filename.includes(kw));\n\n  return {\n    json: {\n      fileIndex: item.json.fileIndex ?? 0,\n      filename,\n      agencyName: item.json.agencyName ?? '',\n      role: isSupport ? 'support' : 'main',\n      text: extractedText.trim().substring(0, 15000)\n    }\n  };\n});"
+      },
+      "id": "node-텍스트정리",
+      "name": "파일 텍스트 정리",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "files",
+        "options": {}
+      },
+      "id": "node-취합",
+      "name": "전체 취합",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1904,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 본체/보조자료 구분 → Gemini 프롬프트용 텍스트 조립\nconst inputData = $input.first().json;\nconst files = inputData.files || [];\nconst agencyName = (files[0] || {}).agencyName || '';\n\nconst mainFiles = files.filter(f => f.role === 'main');\nconst supportFiles = files.filter(f => f.role === 'support');\n\nconst mainText = mainFiles.length > 0\n  ? '【주요 실적 파일 (본체 — 카드뉴스, 포스터, 교육결과물 등 실적 자체)】\\n' +\n    mainFiles.map((f, i) =>\n      '[본체파일 ' + (i + 1) + '] ' + f.filename + '\\n' + (f.text || '(내용 없음)')\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nconst supportText = supportFiles.length > 0\n  ? '\\n\\n【보조 자료 파일 (계획서·계획(안)·결과요약서 등 실적을 설명하는 자료)】\\n' +\n    supportFiles.map((f, i) =>\n      '[보조파일 ' + (i + 1) + '] ' + f.filename + '\\n' + (f.text || '(내용 없음)')\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nreturn [{\n  json: {\n    agencyName,\n    fileCount: files.length,\n    mainFileCount: mainFiles.length,\n    supportFileCount: supportFiles.length,\n    fileListText: (mainText + supportText).substring(0, 50000)\n  }\n}];"
+      },
+      "id": "node-분류준비",
+      "name": "분류 준비",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "maxOutputTokens": 8000
+        }
+      },
+      "id": "node-gemini-lm",
+      "name": "Google Gemini (Agent용)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2336,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// AI 출력 정제화 + 첨부7 양식 HTML 변환\nconst outputRaw = $input.first().json.output;\n\n// 1) 마크다운 코드펜스 제거\nfunction stripCodeFence(str) {\n  if (typeof str !== 'string') return str;\n  const m = str.match(/```(?:json)?[\\s\\S]*?({[\\s\\S]*})/); // JSON 객체 직접 추출\n  if (m) return m[1].trim();\n  return str.trim();\n}\n\n// 2) Gemini가 다른 필드명으로 돌려줄 때 정규화\nfunction normalizeData(raw) {\n  if (!raw) return { achievements: [], summary: '' };\n\n  // 이미 achievements 형식이면 그대로\n  if (Array.isArray(raw.achievements) && raw.achievements.length > 0) return raw;\n\n  // report[] 또는 기타 배열 필드 사용 시 매핑\n  const src = raw.report || raw.results || raw['실적'] || [];\n  const achievements = src.map(function(item, i) {\n    // 배경+목적을 하나로 합치\n    var bg = item.background || item.backgroundAndPurpose || item['추진배경'] || item['추진배경및목적'] || '';\n    if (item.purpose && !bg.includes(item.purpose)) bg = (bg + '\\n\\n■ 목적: ' + item.purpose).trim();\n    return {\n      achievementNumber: item.achievementNumber || item.number || (i + 1),\n      type: item.type || item['유형'] || '기타',\n      title: item.title || item['제목'] || item.name || '',\n      relatedFiles: item.relatedFiles || item.files || [],\n      background: bg,\n      target: item.target || item['추진대상'] || '',\n      content: item.content || item['추진내용'] || '',\n      // result, achievementAndExpectedEffect, outcome 등 다양한 필드명 대응\n      outcome: item.outcome || item.result || item.achievementAndExpectedEffect\n             || item.achievementResult || item['추진성과'] || item['기대효과'] || ''\n    };\n  });\n\n  return {\n    achievements: achievements,\n    summary: raw.summary || ('접수된 파일을 분석하여 선별한 대표 실적 ' + achievements.length + '건입니다.')\n  };\n}\n\nvar data;\ntry {\n  var cleaned = stripCodeFence(outputRaw);\n  data = normalizeData(JSON.parse(cleaned));\n} catch(e) {\n  data = { achievements: [], summary: '⚠️ 출력 파싱 실패. n8n 실행 로그를 확인해주세요. (' + String(e.message) + ')' };\n}\n\nvar achievements = data.achievements || [];\n\nvar html = '<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"UTF-8\"><title>첨부7 정성보고서 초안</title>';\nhtml += '<style>';\nhtml += '@media print { .no-print { display: none !important; } body { margin: 0; } .achievement { page-break-inside: avoid; } }';\nhtml += 'body{font-family:\"Malgun Gothic\",sans-serif;max-width:960px;margin:20px auto;padding:24px;line-height:1.7;color:#222}';\nhtml += 'h1{color:#1a3a5c;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:6px}';\nhtml += '.meta{color:#666;font-size:14px;margin-bottom:8px}';\nhtml += '.print-btn{display:inline-block;background:#2980b9;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;border:none;font-size:14px;margin-bottom:20px;font-family:inherit}';\nhtml += '.achievement{background:#f8f9fa;border-left:5px solid #2980b9;margin:28px 0;padding:20px 24px;border-radius:4px}';\nhtml += '.ach-header{margin:0 0 10px 0}';\nhtml += '.ach-num{color:#1a3a5c;font-size:17px;font-weight:bold}';\nhtml += '.badge{background:#2980b9;color:#fff;padding:3px 12px;border-radius:12px;font-size:12px;margin-left:10px;vertical-align:middle}';\nhtml += '.files{color:#888;font-size:13px;margin:6px 0 14px 0}';\nhtml += '.row{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e9ecef}';\nhtml += '.row:last-child{border-bottom:none}';\nhtml += '.lbl{font-weight:bold;color:#555;font-size:14px;padding-top:2px}';\nhtml += '.val{color:#222;font-size:14px;white-space:pre-wrap}';\nhtml += '.summary{background:#e8f4fd;border:1px solid #bee3f8;padding:14px 18px;border-radius:4px;margin-bottom:24px;font-size:14px}';\nhtml += '.footer{color:#aaa;font-size:12px;margin-top:32px;padding-top:12px;border-top:1px solid #eee}';\nhtml += '</style></head><body>';\n\nhtml += '<h1>첨부7 정성보고서 초안</h1>';\nhtml += '<div class=\"meta\">선별 실적 ' + achievements.length + '건 | AI 자동 생성 초안 — 반드시 검토 후 사용</div>';\nhtml += '<button class=\"print-btn no-print\" onclick=\"window.print()\">🖨️ PDF로 저장 (인쇄)</button>';\n\nif (data.summary) {\n  html += '<div class=\"summary\">📌 ' + data.summary + '</div>';\n}\n\nachievements.forEach(function(ach, idx) {\n  var files = (ach.relatedFiles || []).join(' · ');\n  html += '<div class=\"achievement\">';\n  html += '<div class=\"ach-header\">';\n  html += '<span class=\"ach-num\">실적 ' + (idx + 1) + '. ' + (ach.title || '') + '</span>';\n  if (ach.type) html += '<span class=\"badge\">' + ach.type + '</span>';\n  html += '</div>';\n  if (files) html += '<div class=\"files\">📎 ' + files + '</div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진배경 및 목적</div><div class=\"val\">' + (ach.background || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진대상</div><div class=\"val\">' + (ach.target || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진내용</div><div class=\"val\">' + (ach.content || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진성과(기대효과)</div><div class=\"val\">' + (ach.outcome || '') + '</div></div>';\n  html += '</div>';\n});\n\nhtml += '<div class=\"footer\">본 초안은 AI가 생성한 것입니다. 담당자가 반드시 검토·수정 후 활용하시기 바랍니다.</div>';\nhtml += '</body></html>';\n\nreturn [{ json: { html: html, achievementCount: achievements.length, summary: data.summary || '' } }];"
+      },
+      "id": "node-html",
+      "name": "HTML 생성",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2752,
+        368
+      ]
+    },
+    {
+      "parameters": {
         "formTitle": "PDF 업로드",
-        "formDescription": "PDF 파일을 업로드하세요",
+        "formDescription": "증적자료 업로드",
         "formFields": {
           "values": [
             {
-              "fieldLabel": "기관명",
-              "placeholder": "정성보고서 작성 기관명을 입력하세요",
+              "fieldLabel": "기관명을 입력하세요",
               "requiredField": true
             },
             {
-              "fieldLabel": "평가 항목",
+              "fieldLabel": "증적자료를 업로드하세요",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "지표 선택",
               "fieldType": "dropdown",
+              "defaultValue": "지표를 선택하세요",
               "fieldOptions": {
                 "values": [
                   {
@@ -72,18 +234,13 @@
                 ]
               },
               "requiredField": true
-            },
-            {
-              "fieldLabel": "파일을 업로드해주세요",
-              "fieldType": "file",
-              "acceptFileTypes": ".pdf",
-              "requiredField": true
             }
           ]
         },
+        "responseMode": "lastNode",
         "options": {}
       },
-      "id": "98c102ed-5d30-4cef-b4c1-3604edf284b0",
+      "id": "8cae2558-798e-403f-bc34-6790a72192b0",
       "name": "증적 업로드",
       "type": "n8n-nodes-base.formTrigger",
       "typeVersion": 2.2,
@@ -91,7 +248,20 @@
         288,
         368
       ],
-      "webhookId": "9897f464-ee1e-4ce6-926d-188533d3f6db"
+      "webhookId": "1061e240-55af-48fd-a1c3-a6807b55ca7e"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst availableKeys = Object.keys(item.json || {});\nconst html = item.json.html;\n\nif (!html) {\n  throw new Error('html 키 없음. 사용 가능한 키: ' + availableKeys.join(', '));\n}\n\nconst 파일명 = item.json.파일명 || 'report';\nconst safeFileName = 파일명.replace(/[^a-zA-Z0-9가-힙_-]/g, '_');\n\nreturn [{\n  binary: {\n    data: {\n      data: Buffer.from(html, 'utf-8').toString('base64'),\n      mimeType: 'text/html',\n      fileName: `${safeFileName}_분석결과.html`\n    }\n  },\n  json: item.json\n}];"
+      },
+      "id": "66feb06f-ac23-4842-894c-5ae10bab141a",
+      "name": "HTML 저장",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        368
+      ]
     },
     {
       "parameters": {
@@ -107,7 +277,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                    "leftValue": "={{ $json['지표 선택'] }}",
                     "rightValue": "1. AI 친화·고가치",
                     "operator": {
                       "type": "string",
@@ -131,7 +301,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                    "leftValue": "={{ $json['지표 선택'] }}",
                     "rightValue": "2. 공공데이터 활용도 제고",
                     "operator": {
                       "type": "string",
@@ -155,7 +325,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                    "leftValue": "={{ $json['지표 선택'] }}",
                     "rightValue": "3. AI 도입·활용 사례",
                     "operator": {
                       "type": "string",
@@ -179,7 +349,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                    "leftValue": "={{ $json['지표 선택'] }}",
                     "rightValue": "4. 데이터기반행정 활용도 제고",
                     "operator": {
                       "type": "string",
@@ -203,7 +373,7 @@
                 },
                 "conditions": [
                   {
-                    "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                    "leftValue": "={{ $json['지표 선택'] }}",
                     "rightValue": "5. 공유데이터 제공 노력",
                     "operator": {
                       "type": "string",
@@ -221,148 +391,21 @@
         },
         "options": {}
       },
-      "id": "3a889525-5eb4-45af-bcf0-97b201db7d26",
+      "id": "ad749041-51d5-4f1f-a2c2-623addffabbe",
       "name": "지표별 분류",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        496,
+        544,
         320
       ]
     },
     {
       "parameters": {
-        "content": "## II. 4. 데이터기반행정 활용도 제고\n### 첨부7 정성보고서 초안 자동 생성\n`파일 정규화 → Gemini 파일 업로드(Files API) → 요청 조립 → Gemini 내용 생성 → 역할분류+텍스트정리 → 취합 → 분류준비 → Gemini 실적분류+초안작성 → HTML 응답`\n\n**핵심 개선:** ① Task Runner 환경에서 binary 직접 처리 불가 → Files API 업로드 방식으로 전환 ② 파일명 기반 본체/보조자료 역할 분류 ③ 유형별 예시+선별기준 반영 ④ 텍스트 15,000자",
-        "height": 220,
-        "width": 2240,
-        "color": 5
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        704,
-        432
-      ],
-      "id": "note-section4",
-      "name": "Sticky Note4"
-    },
-    {
-      "parameters": {
-        "jsCode": "// 여러 파일 업로드를 개별 아이템으로 분리\nconst inputItem = $input.first();\nconst agencyName = inputItem.json['기관명'] || '';\nconst uploadedFiles = inputItem.json['파일을 업로드해주세요'] || [];\nconst binary = inputItem.binary || {};\nconst binaryKeys = Object.keys(binary);\n\nif (uploadedFiles.length === 0) throw new Error('업로드된 파일이 없습니다.');\n\nconst items = [];\nfor (let i = 0; i < uploadedFiles.length; i++) {\n  const binaryKey = binaryKeys[i];\n  if (!binaryKey) continue;\n  items.push({\n    json: {\n      fileIndex: i,\n      filename: uploadedFiles[i].filename,\n      agencyName,\n      totalFiles: uploadedFiles.length\n    },\n    binary: { data: binary[binaryKey] }\n  });\n}\n\nif (items.length === 0) throw new Error('바이너리 데이터를 찾을 수 없습니다.');\nreturn items;"
-      },
-      "id": "node-파일정규화",
-      "name": "파일 정규화",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        720,
-        672
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googlePalmApi",
-        "sendBody": true,
-        "contentType": "binaryData",
-        "inputDataFieldName": "data",
-        "options": {
-          "timeout": 120000
-        }
-      },
-      "id": "node-gemini-upload",
-      "name": "Gemini 파일 업로드",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        960,
-        672
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Gemini Files API 응답에서 file_uri 추출 + generateContent 요청 바디 조립\n// ※ JSON 전용 처리 — binary 접근 없음 (Task Runner 호환)\nconst results = [];\nconst uploadResults = $input.all();\nconst originalItems = $('파일 정규화').all();\n\nfor (let i = 0; i < uploadResults.length; i++) {\n  const uploadItem = uploadResults[i];\n  const originalItem = originalItems[i] || { json: {} };\n\n  const fileUri = uploadItem.json?.file?.uri;\n  const filename = originalItem.json.filename || `file_${i + 1}.pdf`;\n  const fileIndex = originalItem.json.fileIndex ?? i;\n  const agencyName = originalItem.json.agencyName ?? '';\n\n  if (!fileUri) {\n    throw new Error(`[${filename}] 파일 업로드 응답에 URI가 없습니다. 응답: ${JSON.stringify(uploadItem.json)}`);\n  }\n\n  const geminiRequestBody = {\n    contents: [{\n      parts: [\n        {\n          file_data: {\n            mime_type: 'application/pdf',\n            file_uri: fileUri\n          }\n        },\n        {\n          text: `파일명: \"${filename}\"\\n\\n이 PDF 파일의 전체 내용을 텍스트로 상세히 추출해주세요.\\n- 표가 있으면 표의 내용을 텍스트로 정리해주세요.\\n- 이미지·그래픽이 있으면 그 내용과 의미를 설명해주세요.\\n- 원문에 충실하게 추출하되, 레이아웃·페이지 구분 마크업은 생략해도 됩니다.\\n- 최대한 완전하게 추출해주세요.`\n        }\n      ]\n    }],\n    generationConfig: {\n      maxOutputTokens: 8192\n    }\n  };\n\n  results.push({\n    json: {\n      fileIndex,\n      filename,\n      agencyName,\n      fileUri,\n      geminiRequestBody\n    }\n  });\n}\n\nreturn results;"
-      },
-      "id": "node-gemini-build",
-      "name": "Gemini 요청 조립",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1200,
-        672
-      ]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googlePalmApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.geminiRequestBody }}",
-        "options": {
-          "timeout": 60000
-        }
-      },
-      "id": "node-gemini-gen",
-      "name": "Gemini 내용 생성",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1440,
-        672
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Gemini generateContent 응답 파싱 + 파일 역할 판별 (본체 vs 보조자료)\nreturn $input.all().map(item => {\n  const filename = item.json.filename ?? '파일명 없음';\n\n  // Gemini API 응답에서 추출 텍스트 가져오기\n  const candidates = item.json.candidates;\n  let extractedText = '';\n  if (candidates?.[0]?.content?.parts?.[0]?.text) {\n    extractedText = candidates[0].content.parts[0].text;\n  }\n\n  // 파일 역할 판별: 파일명에 아래 키워드가 포함되면 보조자료(support)\n  const supportKeywords = [\n    '계획서', '계획(안)', '계획안', '결과요약서', '결과보고서',\n    '보고서(안)', '보조자료', '공문', '지침', '가이드', '증빙'\n  ];\n  const isSupport = supportKeywords.some(kw => filename.includes(kw));\n\n  return {\n    json: {\n      fileIndex: item.json.fileIndex ?? 0,\n      filename,\n      agencyName: item.json.agencyName ?? '',\n      role: isSupport ? 'support' : 'main',\n      text: extractedText.trim().substring(0, 15000)\n    }\n  };\n});"
-      },
-      "id": "node-텍스트정리",
-      "name": "파일 텍스트 정리",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1680,
-        672
-      ]
-    },
-    {
-      "parameters": {
-        "aggregate": "aggregateAllItemData",
-        "destinationFieldName": "files",
-        "options": {}
-      },
-      "id": "node-취합",
-      "name": "전체 취합",
-      "type": "n8n-nodes-base.aggregate",
-      "typeVersion": 1,
-      "position": [
-        1920,
-        672
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// 본체/보조자료 구분 → Gemini 프롬프트용 텍스트 조립\nconst inputData = $input.first().json;\nconst files = inputData.files || [];\nconst agencyName = (files[0] || {}).agencyName || '';\n\nconst mainFiles = files.filter(f => f.role === 'main');\nconst supportFiles = files.filter(f => f.role === 'support');\n\nconst mainText = mainFiles.length > 0\n  ? '【주요 실적 파일 (본체 — 카드뉴스, 포스터, 교육결과물 등 실적 자체)】\\n' +\n    mainFiles.map((f, i) =>\n      '[본체파일 ' + (i + 1) + '] ' + f.filename + '\\n' + (f.text || '(내용 없음)')\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nconst supportText = supportFiles.length > 0\n  ? '\\n\\n【보조 자료 파일 (계획서·계획(안)·결과요약서 등 실적을 설명하는 자료)】\\n' +\n    supportFiles.map((f, i) =>\n      '[보조파일 ' + (i + 1) + '] ' + f.filename + '\\n' + (f.text || '(내용 없음)')\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nreturn [{\n  json: {\n    agencyName,\n    fileCount: files.length,\n    mainFileCount: mainFiles.length,\n    supportFileCount: supportFiles.length,\n    fileListText: (mainText + supportText).substring(0, 50000)\n  }\n}];"
-      },
-      "id": "node-분류준비",
-      "name": "분류 준비",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2160,
-        672
-      ]
-    },
-    {
-      "parameters": {
         "promptType": "define",
-        "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개 (본체 {{ $json.mainFileCount }}개 / 보조자료 {{ $json.supportFileCount }}개)\n\n【업로드된 파일 내용】\n{{ $json.fileListText }}\n\n위 파일들을 분석하여 실적을 분류하고, 기관을 대표하는 실적을 선별하여 각 실적에 대한 첨부7 정성보고서 초안을 작성해주세요.",
+        "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개 (본체 {{ $json.mainFileCount }}개 / 보조자료 {{ $json.supportFileCount }}개)\n\n【⚠️ 실적 수 확인】\n본체 파일이 {{ $json.mainFileCount }}개이므로, 실적은 반드시 {{ $json.mainFileCount }}건입니다.\n각 본체 파일 1개 = 실적 1건. 추가하거나 줄이지 마세요.\n보조자료만 있고 본체가 없으면 보조자료 1개 = 실적 1건.\n\n【업로드된 파일 내용】\n{{ $json.fileListText }}\n\n위 파일들을 분석하여 첨부7 정성보고서 초안을 작성해주세요.\n- 본체 파일 수({{ $json.mainFileCount }}건)와 동일한 수의 실적을 작성하세요.\n- 파일 안의 내용이 아닌, '파일로 대표되는 제작·배포 활동' 자체가 실적입니다.\n- 계획서(보조자료)는 실적으로 계산하지 말고, 동일 실적의 배경·내용 파악에만 활용하세요.",
         "options": {
-          "systemMessage": "당신은 데이터기반행정 활성화 평가 정성보고서(첨부7) 작성 전문가입니다.\n\n【지표 설명】\n지표 3-3-3. 활성화 제고를 위한 다양한 노력\n∎ 기관에서 데이터기반행정을 활성화하기 위해 추진한 다양한 시책 노력을 8점 만점 기준으로 정성 평가\n\n【실적 선별 기준】\n- 아래 유형표를 참고하여 기관의 대표 실적을 선별하여 최대 5건 작성\n- 대표성·독창성·효과성이 높은 실적 우선\n- 동일 유형 내 유사 실적이 여러 개라면 가장 대표적인 1건만 선별\n- 다양한 유형에 걸쳐 고르게 선별하면 높은 점수를 받을 수 있음\n\n【실적 유형 및 예시】\n유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  예시: 데이터기반 정책 추진을 위한 인력 재배치·역할 분담 강화, 분석·활용 역량강화를 위한 개선계획 수립 및 실적점검\n\n유형 2. 기반조성\n  예시: 데이터기반행정을 위한 법·규정 정비·절차·제도 개선, 전담부서 인력 충원·예산확보, 기관 내 성과지표에 분석결과 활용 관련 지표 신설\n\n유형 3. 문화조성 및 성과확산\n  예시: 공모전·경진대회·설명회 등 행사, 유관기관 관계자 간담회, 관련 성과 보도자료 배포·홍보, 우수사례 공유회·사례집 발간, 카드뉴스·포스터 제작·배포\n\n유형 4. AI·데이터 전문인력 양성\n  예시: 기관 자체 교육과정 개발·운영 (행안부 공유 AI 교육과정 활용 가능), AI·데이터 분석 관련 전문인력 채용, AI·데이터 관련 자격증 취득 지원\n\n유형 5. 기타\n  예시: 상기 유형에 해당하지 않는 기관·데이터 특성을 고려한 다양한 노력\n\n【파일 그룹화 규칙】\n- 【주요 실적 파일 (본체)】이 실제 실적(카드뉴스, 포스터, 교육 결과물, 행사 결과물 등)의 본체\n- 【보조 자료 파일】의 계획서·계획(안)·결과요약서는 동일한 이름의 본체 파일과 하나의 실적으로 묶어 내용 보완에 활용\n- 서로 다른 주제·제목의 본체 파일들은 각각 별개 실적으로 처리\n- 보조 자료만 있고 본체가 없는 경우, 보조 자료의 내용을 기반으로 실적 추론\n\n【첨부7 각 항목 작성 기준】\n- 추진배경 및 목적: 이 활동을 한 이유(배경)와 달성하고자 한 것(목적). 계획서·기획 배경 참조.\n- 추진대상: 활동의 수혜자·배포 대상·교육 참가자. 관련 파일에서 대상 정보 파악.\n- 추진내용: 실제로 무엇을 만들었거나 실시했는지. 제작 방식·배포 방식 등 구체적으로 기술.\n- 추진성과(기대효과): 이 활동이 가져온 또는 가져올 효과. 데이터 활용도 향상, 인식 제고 등.\n\n반드시 지정된 JSON 스키마로만 응답하세요."
+          "systemMessage": "당신은 데이터기반행정 활성화 평가 정성보고서(첨부7) 작성 전문가입니다.\n\n【⚠️ 절대 규칙 — 실적이란 무엇인가】\n1. 실적(추진실적) = 업로드된 파일이 나타내는 제작물·활동 자체입니다.\n   - 카드뉴스 PDF → 실적: \"카드뉴스 제작·배포\"\n   - 포스터 PDF → 실적: \"분석결과 포스터 제작·배포\"\n   - 교육자료 PDF → 실적: \"○○ 교육 실시\"\n   - 행사 결과물 PDF → 실적: \"○○ 행사 개최\"\n2. 파일 안의 내용(카드뉴스에 담긴 설명, 포스터에 표시된 수치)은 실적이 아닙니다.\n3. 없는 실적을 절대 만들지 마세요. 본체(main) 파일 수 = 실적 수입니다.\n4. 한 파일 = 한 실적. 한 파일에서 여러 실적을 파생시키지 마세요.\n5. 계획서·계획(안)은 동일 실적의 추진배경·내용 파악에만 활용하세요. 별도 실적이 아닙니다.\n\n【지표 설명】\n지표 3-3-3. 활성화 제고를 위한 다양한 노력\n∎ 기관에서 데이터기반행정을 활성화하기 위해 추진한 다양한 시책 노력을 8점 만점 기준으로 정성 평가\n\n【실적 유형 분류표】\n유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  예시: 역량진단 결과를 활용한 인력 재배치·역할 분담 강화, 개선계획 수립 및 실적점검\n\n유형 2. 기반조성\n  예시: 법·규정 정비·절차·제도 개선, 전담부서 인력 충원·예산확보, 성과지표에 분석결과 활용 지표 신설\n\n유형 3. 문화조성 및 성과확산\n  예시: 공모전·경진대회·설명회 등 행사, 카드뉴스·포스터 제작·배포, 우수사례 공유회·사례집 발간, 보도자료 배포\n\n유형 4. AI·데이터 전문인력 양성\n  예시: 기관 자체 교육과정 개발·운영, 전문인력 채용, 자격증 취득 지원\n\n유형 5. 기타\n  예시: 기관·데이터 특성을 고려한 기타 노력\n\n【파일 그룹화 규칙】\n- 【본체 파일】: 실적 자체인 파일 (카드뉴스, 포스터, 교육 결과물, 행사 결과물 등)\n  → 본체 파일 1개 = 실적 1건\n- 【보조 자료 파일】: 계획서·계획(안)·결과요약서 등 실적을 설명하는 문서\n  → 실적 수에 포함하지 않음. 동일 주제 본체 파일의 추진배경·내용 파악에만 활용\n- 보조 자료만 있고 본체가 없으면: 보조 자료 1개 = 실적 1건으로 처리\n\n【각 항목 작성 기준 — 반드시 이 기준으로만 작성】\n\n▶ 실적명\n- 파일명에서 기관명을 제거한 핵심 제작물명·활동명\n- 예) 파일명 \"○○기관 데이터기반행정 카드뉴스.pdf\" → 실적명 \"데이터기반행정 카드뉴스\"\n- 예) 파일명 \"분석결과 포스터.pdf\" → 실적명 \"분석결과 포스터 제작·배포\"\n\n▶ 추진배경 및 목적\n- 이 제작물·활동을 기획하게 된 배경(문제 인식, 필요성)과 달성하려는 목적\n- 계획서(보조자료)에 배경·목적 내용이 있으면 그 내용을 그대로 활용\n- 계획서 없으면 제작물의 성격(홍보, 교육, 인식 제고 등)과 지표 맥락에서 자연스럽게 추론\n- ❌ 파일 안의 데이터·수치·세부 내용을 나열하지 말 것\n\n▶ 추진대상\n- 이 활동의 수혜자·배포 대상·교육 참가자\n- 파일에 명시된 경우 그대로 기재, 없으면 맥락에서 추론 (내부 직원 대상, 관련 기관 등)\n\n▶ 추진내용\n- 무엇을(제작물명·활동명 포함) + 어떻게 했는지(제작 방식·배포 방식·실시 방법)\n- 예) \"데이터기반행정 소개, 사례, 추진 전략 등의 내용을 담은 카드뉴스를 제작하여 전부서에 배포\"\n- 예) \"2025년 공공데이터 활용도 분석 결과를 인포그래픽 형식의 포스터로 제작하여 전부서에 배포\"\n- 계획서에 구체적인 제작 대상·추진 방식이 있으면 반드시 활용\n- ❌ 파일 내부의 세부 데이터·항목 목록을 나열하지 말 것\n\n▶ 추진성과(기대효과)\n- 이 제작·배포·실시 활동이 가져온 또는 기대되는 효과\n- 예) 내부 구성원의 인지도 제고와 자발적 참여 유도, 데이터기반행정 문화 정착 도모\n- 예) 기관의 데이터 분석 성과를 홍보하여 내부 구성원의 이해도와 참여 의지를 높이고 데이터 기반 의사결정 문화 정착\n- ❌ 파일 내 데이터·수치 나열 금지\n\n반드시 지정된 JSON 스키마로만 응답하세요."
         }
       },
       "id": "node-agent",
@@ -370,105 +413,25 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        2400,
-        672
+        2384,
+        352
       ]
     },
     {
       "parameters": {
-        "modelName": "models/gemini-2.0-flash",
-        "options": {
-          "maxOutputTokens": 8000
-        }
+        "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"description\":\"분류된 실적 목록 (최대 5건, 대표성 높은 순)\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\",\"description\":\"실적 번호 (1부터 시작)\"},\"type\":{\"type\":\"string\",\"description\":\"실적 유형 (역량진단 결과 활용/기반조성/문화조성 및 성과확산/AI·데이터 전문인력 양성/기타)\"},\"title\":{\"type\":\"string\",\"description\":\"실적 제목 (간결하게)\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"이 실적에 해당하는 파일명 목록 (본체+보조자료 포함)\"},\"background\":{\"type\":\"string\",\"description\":\"추진배경 및 목적\"},\"target\":{\"type\":\"string\",\"description\":\"추진대상\"},\"content\":{\"type\":\"string\",\"description\":\"추진내용\"},\"outcome\":{\"type\":\"string\",\"description\":\"추진성과(기대효과)\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\",\"description\":\"전체 실적 요약 (1~2문장)\"}},\"required\":[\"achievements\",\"summary\"]}"
       },
-      "id": "node-gemini-lm",
-      "name": "Google Gemini (Agent용)",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1,
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
       "position": [
-        2320,
-        832
-      ]
-    },
-    {
-      "parameters": {
-        "schemaType": "manual",
-        "inputSchema": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"description\":\"분류된 실적 목록 (최대 5건, 대표성 높은 순)\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\",\"description\":\"실적 번호 (1부터 시작)\"},\"type\":{\"type\":\"string\",\"description\":\"실적 유형 (역량진단 결과 활용/기반조성/문화조성 및 성과확산/AI·데이터 전문인력 양성/기타)\"},\"title\":{\"type\":\"string\",\"description\":\"실적 제목 (간결하게)\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"이 실적에 해당하는 파일명 목록 (본체+보조자료 포함)\"},\"background\":{\"type\":\"string\",\"description\":\"추진배경 및 목적\"},\"target\":{\"type\":\"string\",\"description\":\"추진대상\"},\"content\":{\"type\":\"string\",\"description\":\"추진내용\"},\"outcome\":{\"type\":\"string\",\"description\":\"추진성과(기대효과)\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\",\"description\":\"전체 실적 요약 (1~2문장)\"}},\"required\":[\"achievements\",\"summary\"]}"
-      },
-      "id": "node-sop",
-      "name": "초안 출력 파서",
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "typeVersion": 1.2,
-      "position": [
-        2560,
-        832
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "// AI 출력 정제화 + 첨부7 양식 HTML 변환\nconst outputRaw = $input.first().json.output;\n\n// 1) 마크다운 코드펜스 제거\nfunction stripCodeFence(str) {\n  if (typeof str !== 'string') return str;\n  const m = str.match(/```(?:json)?[\\s\\S]*?({[\\s\\S]*})/); // JSON 객체 직접 추출\n  if (m) return m[1].trim();\n  return str.trim();\n}\n\n// 2) Gemini가 다른 필드명으로 돌려줄 때 정규화\nfunction normalizeData(raw) {\n  if (!raw) return { achievements: [], summary: '' };\n\n  // 이미 achievements 형식이면 그대로\n  if (Array.isArray(raw.achievements) && raw.achievements.length > 0) return raw;\n\n  // report[] 또는 기타 배열 필드 사용 시 매핑\n  const src = raw.report || raw.results || raw['실적'] || [];\n  const achievements = src.map(function(item, i) {\n    // 배경+목적을 하나로 합치\n    var bg = item.background || item.backgroundAndPurpose || item['추진배경'] || item['추진배경및목적'] || '';\n    if (item.purpose && !bg.includes(item.purpose)) bg = (bg + '\\n\\n■ 목적: ' + item.purpose).trim();\n    return {\n      achievementNumber: item.achievementNumber || item.number || (i + 1),\n      type: item.type || item['유형'] || '기타',\n      title: item.title || item['제목'] || item.name || '',\n      relatedFiles: item.relatedFiles || item.files || [],\n      background: bg,\n      target: item.target || item['추진대상'] || '',\n      content: item.content || item['추진내용'] || '',\n      // result, achievementAndExpectedEffect, outcome 등 다양한 필드명 대응\n      outcome: item.outcome || item.result || item.achievementAndExpectedEffect\n             || item.achievementResult || item['추진성과'] || item['기대효과'] || ''\n    };\n  });\n\n  return {\n    achievements: achievements,\n    summary: raw.summary || ('접수된 파일을 분석하여 선별한 대표 실적 ' + achievements.length + '건입니다.')\n  };\n}\n\nvar data;\ntry {\n  var cleaned = stripCodeFence(outputRaw);\n  data = normalizeData(JSON.parse(cleaned));\n} catch(e) {\n  data = { achievements: [], summary: '⚠️ 출력 파싱 실패. n8n 실행 로그를 확인해주세요. (' + String(e.message) + ')' };\n}\n\nvar achievements = data.achievements || [];\n\nvar html = '<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"UTF-8\"><title>첨부7 정성보고서 초안</title>';\nhtml += '<style>';\nhtml += '@media print { .no-print { display: none !important; } body { margin: 0; } .achievement { page-break-inside: avoid; } }';\nhtml += 'body{font-family:\"Malgun Gothic\",sans-serif;max-width:960px;margin:20px auto;padding:24px;line-height:1.7;color:#222}';\nhtml += 'h1{color:#1a3a5c;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:6px}';\nhtml += '.meta{color:#666;font-size:14px;margin-bottom:8px}';\nhtml += '.print-btn{display:inline-block;background:#2980b9;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;border:none;font-size:14px;margin-bottom:20px;font-family:inherit}';\nhtml += '.achievement{background:#f8f9fa;border-left:5px solid #2980b9;margin:28px 0;padding:20px 24px;border-radius:4px}';\nhtml += '.ach-header{margin:0 0 10px 0}';\nhtml += '.ach-num{color:#1a3a5c;font-size:17px;font-weight:bold}';\nhtml += '.badge{background:#2980b9;color:#fff;padding:3px 12px;border-radius:12px;font-size:12px;margin-left:10px;vertical-align:middle}';\nhtml += '.files{color:#888;font-size:13px;margin:6px 0 14px 0}';\nhtml += '.row{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e9ecef}';\nhtml += '.row:last-child{border-bottom:none}';\nhtml += '.lbl{font-weight:bold;color:#555;font-size:14px;padding-top:2px}';\nhtml += '.val{color:#222;font-size:14px;white-space:pre-wrap}';\nhtml += '.summary{background:#e8f4fd;border:1px solid #bee3f8;padding:14px 18px;border-radius:4px;margin-bottom:24px;font-size:14px}';\nhtml += '.footer{color:#aaa;font-size:12px;margin-top:32px;padding-top:12px;border-top:1px solid #eee}';\nhtml += '</style></head><body>';\n\nhtml += '<h1>첨부7 정성보고서 초안</h1>';\nhtml += '<div class=\"meta\">선별 실적 ' + achievements.length + '건 | AI 자동 생성 초안 — 반드시 검토 후 사용</div>';\nhtml += '<button class=\"print-btn no-print\" onclick=\"window.print()\">🖨️ PDF로 저장 (인쇄)</button>';\n\nif (data.summary) {\n  html += '<div class=\"summary\">📌 ' + data.summary + '</div>';\n}\n\nachievements.forEach(function(ach, idx) {\n  var files = (ach.relatedFiles || []).join(' · ');\n  html += '<div class=\"achievement\">';\n  html += '<div class=\"ach-header\">';\n  html += '<span class=\"ach-num\">실적 ' + (idx + 1) + '. ' + (ach.title || '') + '</span>';\n  if (ach.type) html += '<span class=\"badge\">' + ach.type + '</span>';\n  html += '</div>';\n  if (files) html += '<div class=\"files\">📎 ' + files + '</div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진배경 및 목적</div><div class=\"val\">' + (ach.background || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진대상</div><div class=\"val\">' + (ach.target || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진내용</div><div class=\"val\">' + (ach.content || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진성과(기대효과)</div><div class=\"val\">' + (ach.outcome || '') + '</div></div>';\n  html += '</div>';\n});\n\nhtml += '<div class=\"footer\">본 초안은 AI가 생성한 것입니다. 담당자가 반드시 검토·수정 후 활용하시기 바랍니다.</div>';\nhtml += '</body></html>';\n\nreturn [{ json: { html: html, achievementCount: achievements.length, summary: data.summary || '' } }];"
-      },
-      "id": "node-html",
-      "name": "HTML 생성",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        2640,
-        672
-      ]
-    },
-    {
-      "parameters": {
-        "respondWith": "text",
-        "responseBody": "={{ $json.html }}",
-        "options": {
-          "responseHeaders": {
-            "entries": [
-              {
-                "name": "Content-Type",
-                "value": "text/html; charset=utf-8"
-              }
-            ]
-          }
-        }
-      },
-      "id": "node-respond",
-      "name": "HTML 응답",
-      "type": "n8n-nodes-base.respondToWebhook",
-      "typeVersion": 1.1,
-      "position": [
-        2880,
-        672
-      ]
+        2576,
+        544
+      ],
+      "id": "13c3b19f-4cd4-45b8-9aac-d6882e03b214",
+      "name": "초안 출력 파서"
     }
   ],
   "connections": {
-    "증적 업로드": {
-      "main": [
-        [
-          {
-            "node": "지표별 분류",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "지표별 분류": {
-      "main": [
-        [],
-        [],
-        [],
-        [
-          {
-            "node": "파일 정규화",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        []
-      ]
-    },
     "파일 정규화": {
       "main": [
         [
@@ -546,17 +509,6 @@
         ]
       ]
     },
-    "실적 분류 & 초안 작성": {
-      "main": [
-        [
-          {
-            "node": "HTML 생성",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Google Gemini (Agent용)": {
       "ai_languageModel": [
         [
@@ -568,12 +520,12 @@
         ]
       ]
     },
-    "초안 출력 파서": {
-      "ai_outputParser": [
+    "증적 업로드": {
+      "main": [
         [
           {
-            "node": "실적 분류 & 초안 작성",
-            "type": "ai_outputParser",
+            "node": "지표별 분류",
+            "type": "main",
             "index": 0
           }
         ]
@@ -583,8 +535,44 @@
       "main": [
         [
           {
-            "node": "HTML 응답",
+            "node": "HTML 저장",
             "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "지표별 분류": {
+      "main": [
+        [],
+        [],
+        [],
+        [
+          {
+            "node": "파일 정규화",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "실적 분류 & 초안 작성": {
+      "main": [
+        [
+          {
+            "node": "HTML 생성",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 출력 파서": {
+      "ai_tool": [
+        [
+          {
+            "node": "실적 분류 & 초안 작성",
+            "type": "ai_tool",
             "index": 0
           }
         ]
@@ -603,9 +591,9 @@
     "templateCredsSetupCompleted": true
   },
   "pinData": {},
-  "versionId": "8f8adc65-5c0b-4563-bf44-5397a74b037d",
-  "activeVersionId": "8f8adc65-5c0b-4563-bf44-5397a74b037d",
-  "versionCounter": 240,
+  "versionId": "0a1530d0-312e-43be-b895-07da274e2884",
+  "activeVersionId": "0a1530d0-312e-43be-b895-07da274e2884",
+  "versionCounter": 366,
   "triggerCount": 1,
   "shared": [
     {
@@ -635,9 +623,9 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-03-20T05:21:34.731Z",
-    "createdAt": "2026-03-20T05:21:34.731Z",
-    "versionId": "8f8adc65-5c0b-4563-bf44-5397a74b037d",
+    "updatedAt": "2026-03-20T07:50:38.556Z",
+    "createdAt": "2026-03-20T07:50:38.556Z",
+    "versionId": "0a1530d0-312e-43be-b895-07da274e2884",
     "workflowId": "7ljk74wFhpvgz3jy",
     "nodes": [
       {
@@ -673,18 +661,198 @@
       },
       {
         "parameters": {
+          "content": "## II. 4. 데이터기반행정 활용도 제고\n### 첨부7 정성보고서 초안 자동 생성\n`파일 정규화 → Gemini 파일 업로드(Files API) → 요청 조립 → Gemini 내용 생성 → 역할분류+텍스트정리 → 취합 → 분류준비 → Gemini 실적분류+초안작성 → HTML 응답`\n\n**핵심 개선:** ① Task Runner 환경에서 binary 직접 처리 불가 → Files API 업로드 방식으로 전환 ② 파일명 기반 본체/보조자료 역할 분류 ③ 유형별 예시+선별기준 반영 ④ 텍스트 15,000자",
+          "height": 220,
+          "width": 2240,
+          "color": 5
+        },
+        "type": "n8n-nodes-base.stickyNote",
+        "typeVersion": 1,
+        "position": [
+          704,
+          432
+        ],
+        "id": "note-section4",
+        "name": "Sticky Note4"
+      },
+      {
+        "parameters": {
+          "jsCode": "const inputItem = $input.first();\n\n// 실제 폼 필드명으로 접근\nconst agencyName = inputItem.json['기관명을 입력하세요'] || '';\nconst uploadedFiles = inputItem.json['증적자료를 업로드하세요'] || [];\nconst binary = inputItem.binary || {};\nconst binaryKeys = Object.keys(binary);\n\nif (uploadedFiles.length === 0) throw new Error('업로드된 파일이 없습니다.');\n\nconst items = [];\nfor (let i = 0; i < uploadedFiles.length; i++) {\n  const binaryKey = binaryKeys[i];\n  if (!binaryKey) continue;\n  items.push({\n    json: {\n      fileIndex: i,\n      filename: uploadedFiles[i].filename,\n      agencyName,\n      totalFiles: uploadedFiles.length\n    },\n    binary: { data: binary[binaryKey] }\n  });\n}\n\nif (items.length === 0) throw new Error('바이너리 데이터를 찾을 수 없습니다.');\nreturn items;"
+        },
+        "id": "node-파일정규화",
+        "name": "파일 정규화",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          704,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googlePalmApi",
+          "sendBody": true,
+          "contentType": "binaryData",
+          "inputDataFieldName": "data",
+          "options": {
+            "timeout": 120000
+          }
+        },
+        "id": "node-gemini-upload",
+        "name": "Gemini 파일 업로드",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          944,
+          352
+        ],
+        "credentials": {
+          "googlePalmApi": {
+            "id": "GjifZesv3uzCC7ex",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Gemini Files API 응답에서 file_uri 추출 + generateContent 요청 바디 조립\n// ※ JSON 전용 처리 — binary 접근 없음 (Task Runner 호환)\nconst results = [];\nconst uploadResults = $input.all();\nconst originalItems = $('파일 정규화').all();\n\nfor (let i = 0; i < uploadResults.length; i++) {\n  const uploadItem = uploadResults[i];\n  const originalItem = originalItems[i] || { json: {} };\n\n  const fileUri = uploadItem.json?.file?.uri;\n  const filename = originalItem.json.filename || `file_${i + 1}.pdf`;\n  const fileIndex = originalItem.json.fileIndex ?? i;\n  const agencyName = originalItem.json.agencyName ?? '';\n\n  if (!fileUri) {\n    throw new Error(`[${filename}] 파일 업로드 응답에 URI가 없습니다. 응답: ${JSON.stringify(uploadItem.json)}`);\n  }\n\n  const geminiRequestBody = {\n    contents: [{\n      parts: [\n        {\n          file_data: {\n            mime_type: 'application/pdf',\n            file_uri: fileUri\n          }\n        },\n        {\n          text: `파일명: \"${filename}\"\\n\\n이 PDF 파일의 전체 내용을 텍스트로 상세히 추출해주세요.\\n- 표가 있으면 표의 내용을 텍스트로 정리해주세요.\\n- 이미지·그래픽이 있으면 그 내용과 의미를 설명해주세요.\\n- 원문에 충실하게 추출하되, 레이아웃·페이지 구분 마크업은 생략해도 됩니다.\\n- 최대한 완전하게 추출해주세요.`\n        }\n      ]\n    }],\n    generationConfig: {\n      maxOutputTokens: 8192\n    }\n  };\n\n  results.push({\n    json: {\n      fileIndex,\n      filename,\n      agencyName,\n      fileUri,\n      geminiRequestBody\n    }\n  });\n}\n\nreturn results;"
+        },
+        "id": "node-gemini-build",
+        "name": "Gemini 요청 조립",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1184,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "googlePalmApi",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.geminiRequestBody }}",
+          "options": {
+            "timeout": 60000
+          }
+        },
+        "id": "node-gemini-gen",
+        "name": "Gemini 내용 생성",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1424,
+          352
+        ],
+        "credentials": {
+          "googlePalmApi": {
+            "id": "GjifZesv3uzCC7ex",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Gemini generateContent 응답 파싱 + 파일 역할 판별 (본체 vs 보조자료)\nreturn $input.all().map(item => {\n  const filename = item.json.filename ?? '파일명 없음';\n\n  // Gemini API 응답에서 추출 텍스트 가져오기\n  const candidates = item.json.candidates;\n  let extractedText = '';\n  if (candidates?.[0]?.content?.parts?.[0]?.text) {\n    extractedText = candidates[0].content.parts[0].text;\n  }\n\n  // 파일 역할 판별: 파일명에 아래 키워드가 포함되면 보조자료(support)\n  const supportKeywords = [\n    '계획서', '계획(안)', '계획안', '결과요약서', '결과보고서',\n    '보고서(안)', '보조자료', '공문', '지침', '가이드', '증빙'\n  ];\n  const isSupport = supportKeywords.some(kw => filename.includes(kw));\n\n  return {\n    json: {\n      fileIndex: item.json.fileIndex ?? 0,\n      filename,\n      agencyName: item.json.agencyName ?? '',\n      role: isSupport ? 'support' : 'main',\n      text: extractedText.trim().substring(0, 15000)\n    }\n  };\n});"
+        },
+        "id": "node-텍스트정리",
+        "name": "파일 텍스트 정리",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1664,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "aggregate": "aggregateAllItemData",
+          "destinationFieldName": "files",
+          "options": {}
+        },
+        "id": "node-취합",
+        "name": "전체 취합",
+        "type": "n8n-nodes-base.aggregate",
+        "typeVersion": 1,
+        "position": [
+          1904,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "// 본체/보조자료 구분 → Gemini 프롬프트용 텍스트 조립\nconst inputData = $input.first().json;\nconst files = inputData.files || [];\nconst agencyName = (files[0] || {}).agencyName || '';\n\nconst mainFiles = files.filter(f => f.role === 'main');\nconst supportFiles = files.filter(f => f.role === 'support');\n\nconst mainText = mainFiles.length > 0\n  ? '【주요 실적 파일 (본체 — 카드뉴스, 포스터, 교육결과물 등 실적 자체)】\\n' +\n    mainFiles.map((f, i) =>\n      '[본체파일 ' + (i + 1) + '] ' + f.filename + '\\n' + (f.text || '(내용 없음)')\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nconst supportText = supportFiles.length > 0\n  ? '\\n\\n【보조 자료 파일 (계획서·계획(안)·결과요약서 등 실적을 설명하는 자료)】\\n' +\n    supportFiles.map((f, i) =>\n      '[보조파일 ' + (i + 1) + '] ' + f.filename + '\\n' + (f.text || '(내용 없음)')\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nreturn [{\n  json: {\n    agencyName,\n    fileCount: files.length,\n    mainFileCount: mainFiles.length,\n    supportFileCount: supportFiles.length,\n    fileListText: (mainText + supportText).substring(0, 50000)\n  }\n}];"
+        },
+        "id": "node-분류준비",
+        "name": "분류 준비",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2144,
+          352
+        ]
+      },
+      {
+        "parameters": {
+          "modelName": "models/gemini-2.0-flash",
+          "options": {
+            "maxOutputTokens": 8000
+          }
+        },
+        "id": "node-gemini-lm",
+        "name": "Google Gemini (Agent용)",
+        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+        "typeVersion": 1,
+        "position": [
+          2336,
+          528
+        ],
+        "credentials": {
+          "googlePalmApi": {
+            "id": "GjifZesv3uzCC7ex",
+            "name": "Google Gemini(PaLM) Api account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// AI 출력 정제화 + 첨부7 양식 HTML 변환\nconst outputRaw = $input.first().json.output;\n\n// 1) 마크다운 코드펜스 제거\nfunction stripCodeFence(str) {\n  if (typeof str !== 'string') return str;\n  const m = str.match(/```(?:json)?[\\s\\S]*?({[\\s\\S]*})/); // JSON 객체 직접 추출\n  if (m) return m[1].trim();\n  return str.trim();\n}\n\n// 2) Gemini가 다른 필드명으로 돌려줄 때 정규화\nfunction normalizeData(raw) {\n  if (!raw) return { achievements: [], summary: '' };\n\n  // 이미 achievements 형식이면 그대로\n  if (Array.isArray(raw.achievements) && raw.achievements.length > 0) return raw;\n\n  // report[] 또는 기타 배열 필드 사용 시 매핑\n  const src = raw.report || raw.results || raw['실적'] || [];\n  const achievements = src.map(function(item, i) {\n    // 배경+목적을 하나로 합치\n    var bg = item.background || item.backgroundAndPurpose || item['추진배경'] || item['추진배경및목적'] || '';\n    if (item.purpose && !bg.includes(item.purpose)) bg = (bg + '\\n\\n■ 목적: ' + item.purpose).trim();\n    return {\n      achievementNumber: item.achievementNumber || item.number || (i + 1),\n      type: item.type || item['유형'] || '기타',\n      title: item.title || item['제목'] || item.name || '',\n      relatedFiles: item.relatedFiles || item.files || [],\n      background: bg,\n      target: item.target || item['추진대상'] || '',\n      content: item.content || item['추진내용'] || '',\n      // result, achievementAndExpectedEffect, outcome 등 다양한 필드명 대응\n      outcome: item.outcome || item.result || item.achievementAndExpectedEffect\n             || item.achievementResult || item['추진성과'] || item['기대효과'] || ''\n    };\n  });\n\n  return {\n    achievements: achievements,\n    summary: raw.summary || ('접수된 파일을 분석하여 선별한 대표 실적 ' + achievements.length + '건입니다.')\n  };\n}\n\nvar data;\ntry {\n  var cleaned = stripCodeFence(outputRaw);\n  data = normalizeData(JSON.parse(cleaned));\n} catch(e) {\n  data = { achievements: [], summary: '⚠️ 출력 파싱 실패. n8n 실행 로그를 확인해주세요. (' + String(e.message) + ')' };\n}\n\nvar achievements = data.achievements || [];\n\nvar html = '<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"UTF-8\"><title>첨부7 정성보고서 초안</title>';\nhtml += '<style>';\nhtml += '@media print { .no-print { display: none !important; } body { margin: 0; } .achievement { page-break-inside: avoid; } }';\nhtml += 'body{font-family:\"Malgun Gothic\",sans-serif;max-width:960px;margin:20px auto;padding:24px;line-height:1.7;color:#222}';\nhtml += 'h1{color:#1a3a5c;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:6px}';\nhtml += '.meta{color:#666;font-size:14px;margin-bottom:8px}';\nhtml += '.print-btn{display:inline-block;background:#2980b9;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;border:none;font-size:14px;margin-bottom:20px;font-family:inherit}';\nhtml += '.achievement{background:#f8f9fa;border-left:5px solid #2980b9;margin:28px 0;padding:20px 24px;border-radius:4px}';\nhtml += '.ach-header{margin:0 0 10px 0}';\nhtml += '.ach-num{color:#1a3a5c;font-size:17px;font-weight:bold}';\nhtml += '.badge{background:#2980b9;color:#fff;padding:3px 12px;border-radius:12px;font-size:12px;margin-left:10px;vertical-align:middle}';\nhtml += '.files{color:#888;font-size:13px;margin:6px 0 14px 0}';\nhtml += '.row{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e9ecef}';\nhtml += '.row:last-child{border-bottom:none}';\nhtml += '.lbl{font-weight:bold;color:#555;font-size:14px;padding-top:2px}';\nhtml += '.val{color:#222;font-size:14px;white-space:pre-wrap}';\nhtml += '.summary{background:#e8f4fd;border:1px solid #bee3f8;padding:14px 18px;border-radius:4px;margin-bottom:24px;font-size:14px}';\nhtml += '.footer{color:#aaa;font-size:12px;margin-top:32px;padding-top:12px;border-top:1px solid #eee}';\nhtml += '</style></head><body>';\n\nhtml += '<h1>첨부7 정성보고서 초안</h1>';\nhtml += '<div class=\"meta\">선별 실적 ' + achievements.length + '건 | AI 자동 생성 초안 — 반드시 검토 후 사용</div>';\nhtml += '<button class=\"print-btn no-print\" onclick=\"window.print()\">🖨️ PDF로 저장 (인쇄)</button>';\n\nif (data.summary) {\n  html += '<div class=\"summary\">📌 ' + data.summary + '</div>';\n}\n\nachievements.forEach(function(ach, idx) {\n  var files = (ach.relatedFiles || []).join(' · ');\n  html += '<div class=\"achievement\">';\n  html += '<div class=\"ach-header\">';\n  html += '<span class=\"ach-num\">실적 ' + (idx + 1) + '. ' + (ach.title || '') + '</span>';\n  if (ach.type) html += '<span class=\"badge\">' + ach.type + '</span>';\n  html += '</div>';\n  if (files) html += '<div class=\"files\">📎 ' + files + '</div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진배경 및 목적</div><div class=\"val\">' + (ach.background || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진대상</div><div class=\"val\">' + (ach.target || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진내용</div><div class=\"val\">' + (ach.content || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진성과(기대효과)</div><div class=\"val\">' + (ach.outcome || '') + '</div></div>';\n  html += '</div>';\n});\n\nhtml += '<div class=\"footer\">본 초안은 AI가 생성한 것입니다. 담당자가 반드시 검토·수정 후 활용하시기 바랍니다.</div>';\nhtml += '</body></html>';\n\nreturn [{ json: { html: html, achievementCount: achievements.length, summary: data.summary || '' } }];"
+        },
+        "id": "node-html",
+        "name": "HTML 생성",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2752,
+          368
+        ]
+      },
+      {
+        "parameters": {
           "formTitle": "PDF 업로드",
-          "formDescription": "PDF 파일을 업로드하세요",
+          "formDescription": "증적자료 업로드",
           "formFields": {
             "values": [
               {
-                "fieldLabel": "기관명",
-                "placeholder": "정성보고서 작성 기관명을 입력하세요",
+                "fieldLabel": "기관명을 입력하세요",
                 "requiredField": true
               },
               {
-                "fieldLabel": "평가 항목",
+                "fieldLabel": "증적자료를 업로드하세요",
+                "fieldType": "file",
+                "acceptFileTypes": ".pdf",
+                "requiredField": true
+              },
+              {
+                "fieldLabel": "지표 선택",
                 "fieldType": "dropdown",
+                "defaultValue": "지표를 선택하세요",
                 "fieldOptions": {
                   "values": [
                     {
@@ -705,18 +873,13 @@
                   ]
                 },
                 "requiredField": true
-              },
-              {
-                "fieldLabel": "파일을 업로드해주세요",
-                "fieldType": "file",
-                "acceptFileTypes": ".pdf",
-                "requiredField": true
               }
             ]
           },
+          "responseMode": "lastNode",
           "options": {}
         },
-        "id": "98c102ed-5d30-4cef-b4c1-3604edf284b0",
+        "id": "8cae2558-798e-403f-bc34-6790a72192b0",
         "name": "증적 업로드",
         "type": "n8n-nodes-base.formTrigger",
         "typeVersion": 2.2,
@@ -724,7 +887,20 @@
           288,
           368
         ],
-        "webhookId": "9897f464-ee1e-4ce6-926d-188533d3f6db"
+        "webhookId": "1061e240-55af-48fd-a1c3-a6807b55ca7e"
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first();\nconst availableKeys = Object.keys(item.json || {});\nconst html = item.json.html;\n\nif (!html) {\n  throw new Error('html 키 없음. 사용 가능한 키: ' + availableKeys.join(', '));\n}\n\nconst 파일명 = item.json.파일명 || 'report';\nconst safeFileName = 파일명.replace(/[^a-zA-Z0-9가-힙_-]/g, '_');\n\nreturn [{\n  binary: {\n    data: {\n      data: Buffer.from(html, 'utf-8').toString('base64'),\n      mimeType: 'text/html',\n      fileName: `${safeFileName}_분석결과.html`\n    }\n  },\n  json: item.json\n}];"
+        },
+        "id": "66feb06f-ac23-4842-894c-5ae10bab141a",
+        "name": "HTML 저장",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2880,
+          368
+        ]
       },
       {
         "parameters": {
@@ -740,7 +916,7 @@
                   },
                   "conditions": [
                     {
-                      "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                      "leftValue": "={{ $json['지표 선택'] }}",
                       "rightValue": "1. AI 친화·고가치",
                       "operator": {
                         "type": "string",
@@ -764,7 +940,7 @@
                   },
                   "conditions": [
                     {
-                      "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                      "leftValue": "={{ $json['지표 선택'] }}",
                       "rightValue": "2. 공공데이터 활용도 제고",
                       "operator": {
                         "type": "string",
@@ -788,7 +964,7 @@
                   },
                   "conditions": [
                     {
-                      "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                      "leftValue": "={{ $json['지표 선택'] }}",
                       "rightValue": "3. AI 도입·활용 사례",
                       "operator": {
                         "type": "string",
@@ -812,7 +988,7 @@
                   },
                   "conditions": [
                     {
-                      "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                      "leftValue": "={{ $json['지표 선택'] }}",
                       "rightValue": "4. 데이터기반행정 활용도 제고",
                       "operator": {
                         "type": "string",
@@ -836,7 +1012,7 @@
                   },
                   "conditions": [
                     {
-                      "leftValue": "={{ $('증적 업로드').item.json['평가 항목'] }}",
+                      "leftValue": "={{ $json['지표 선택'] }}",
                       "rightValue": "5. 공유데이터 제공 노력",
                       "operator": {
                         "type": "string",
@@ -854,160 +1030,21 @@
           },
           "options": {}
         },
-        "id": "3a889525-5eb4-45af-bcf0-97b201db7d26",
+        "id": "ad749041-51d5-4f1f-a2c2-623addffabbe",
         "name": "지표별 분류",
         "type": "n8n-nodes-base.switch",
         "typeVersion": 3.2,
         "position": [
-          496,
+          544,
           320
         ]
       },
       {
         "parameters": {
-          "content": "## II. 4. 데이터기반행정 활용도 제고\n### 첨부7 정성보고서 초안 자동 생성\n`파일 정규화 → Gemini 파일 업로드(Files API) → 요청 조립 → Gemini 내용 생성 → 역할분류+텍스트정리 → 취합 → 분류준비 → Gemini 실적분류+초안작성 → HTML 응답`\n\n**핵심 개선:** ① Task Runner 환경에서 binary 직접 처리 불가 → Files API 업로드 방식으로 전환 ② 파일명 기반 본체/보조자료 역할 분류 ③ 유형별 예시+선별기준 반영 ④ 텍스트 15,000자",
-          "height": 220,
-          "width": 2240,
-          "color": 5
-        },
-        "type": "n8n-nodes-base.stickyNote",
-        "typeVersion": 1,
-        "position": [
-          704,
-          432
-        ],
-        "id": "note-section4",
-        "name": "Sticky Note4"
-      },
-      {
-        "parameters": {
-          "jsCode": "// 여러 파일 업로드를 개별 아이템으로 분리\nconst inputItem = $input.first();\nconst agencyName = inputItem.json['기관명'] || '';\nconst uploadedFiles = inputItem.json['파일을 업로드해주세요'] || [];\nconst binary = inputItem.binary || {};\nconst binaryKeys = Object.keys(binary);\n\nif (uploadedFiles.length === 0) throw new Error('업로드된 파일이 없습니다.');\n\nconst items = [];\nfor (let i = 0; i < uploadedFiles.length; i++) {\n  const binaryKey = binaryKeys[i];\n  if (!binaryKey) continue;\n  items.push({\n    json: {\n      fileIndex: i,\n      filename: uploadedFiles[i].filename,\n      agencyName,\n      totalFiles: uploadedFiles.length\n    },\n    binary: { data: binary[binaryKey] }\n  });\n}\n\nif (items.length === 0) throw new Error('바이너리 데이터를 찾을 수 없습니다.');\nreturn items;"
-        },
-        "id": "node-파일정규화",
-        "name": "파일 정규화",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          720,
-          672
-        ]
-      },
-      {
-        "parameters": {
-          "method": "POST",
-          "url": "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media",
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "googlePalmApi",
-          "sendBody": true,
-          "contentType": "binaryData",
-          "inputDataFieldName": "data",
-          "options": {
-            "timeout": 120000
-          }
-        },
-        "id": "node-gemini-upload",
-        "name": "Gemini 파일 업로드",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [
-          960,
-          672
-        ],
-        "credentials": {
-          "googlePalmApi": {
-            "id": "GjifZesv3uzCC7ex",
-            "name": "Google Gemini(PaLM) Api account"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "jsCode": "// Gemini Files API 응답에서 file_uri 추출 + generateContent 요청 바디 조립\n// ※ JSON 전용 처리 — binary 접근 없음 (Task Runner 호환)\nconst results = [];\nconst uploadResults = $input.all();\nconst originalItems = $('파일 정규화').all();\n\nfor (let i = 0; i < uploadResults.length; i++) {\n  const uploadItem = uploadResults[i];\n  const originalItem = originalItems[i] || { json: {} };\n\n  const fileUri = uploadItem.json?.file?.uri;\n  const filename = originalItem.json.filename || `file_${i + 1}.pdf`;\n  const fileIndex = originalItem.json.fileIndex ?? i;\n  const agencyName = originalItem.json.agencyName ?? '';\n\n  if (!fileUri) {\n    throw new Error(`[${filename}] 파일 업로드 응답에 URI가 없습니다. 응답: ${JSON.stringify(uploadItem.json)}`);\n  }\n\n  const geminiRequestBody = {\n    contents: [{\n      parts: [\n        {\n          file_data: {\n            mime_type: 'application/pdf',\n            file_uri: fileUri\n          }\n        },\n        {\n          text: `파일명: \"${filename}\"\\n\\n이 PDF 파일의 전체 내용을 텍스트로 상세히 추출해주세요.\\n- 표가 있으면 표의 내용을 텍스트로 정리해주세요.\\n- 이미지·그래픽이 있으면 그 내용과 의미를 설명해주세요.\\n- 원문에 충실하게 추출하되, 레이아웃·페이지 구분 마크업은 생략해도 됩니다.\\n- 최대한 완전하게 추출해주세요.`\n        }\n      ]\n    }],\n    generationConfig: {\n      maxOutputTokens: 8192\n    }\n  };\n\n  results.push({\n    json: {\n      fileIndex,\n      filename,\n      agencyName,\n      fileUri,\n      geminiRequestBody\n    }\n  });\n}\n\nreturn results;"
-        },
-        "id": "node-gemini-build",
-        "name": "Gemini 요청 조립",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          1200,
-          672
-        ]
-      },
-      {
-        "parameters": {
-          "method": "POST",
-          "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
-          "authentication": "predefinedCredentialType",
-          "nodeCredentialType": "googlePalmApi",
-          "sendBody": true,
-          "specifyBody": "json",
-          "jsonBody": "={{ $json.geminiRequestBody }}",
-          "options": {
-            "timeout": 60000
-          }
-        },
-        "id": "node-gemini-gen",
-        "name": "Gemini 내용 생성",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [
-          1440,
-          672
-        ],
-        "credentials": {
-          "googlePalmApi": {
-            "id": "GjifZesv3uzCC7ex",
-            "name": "Google Gemini(PaLM) Api account"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "jsCode": "// Gemini generateContent 응답 파싱 + 파일 역할 판별 (본체 vs 보조자료)\nreturn $input.all().map(item => {\n  const filename = item.json.filename ?? '파일명 없음';\n\n  // Gemini API 응답에서 추출 텍스트 가져오기\n  const candidates = item.json.candidates;\n  let extractedText = '';\n  if (candidates?.[0]?.content?.parts?.[0]?.text) {\n    extractedText = candidates[0].content.parts[0].text;\n  }\n\n  // 파일 역할 판별: 파일명에 아래 키워드가 포함되면 보조자료(support)\n  const supportKeywords = [\n    '계획서', '계획(안)', '계획안', '결과요약서', '결과보고서',\n    '보고서(안)', '보조자료', '공문', '지침', '가이드', '증빙'\n  ];\n  const isSupport = supportKeywords.some(kw => filename.includes(kw));\n\n  return {\n    json: {\n      fileIndex: item.json.fileIndex ?? 0,\n      filename,\n      agencyName: item.json.agencyName ?? '',\n      role: isSupport ? 'support' : 'main',\n      text: extractedText.trim().substring(0, 15000)\n    }\n  };\n});"
-        },
-        "id": "node-텍스트정리",
-        "name": "파일 텍스트 정리",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          1680,
-          672
-        ]
-      },
-      {
-        "parameters": {
-          "aggregate": "aggregateAllItemData",
-          "destinationFieldName": "files",
-          "options": {}
-        },
-        "id": "node-취합",
-        "name": "전체 취합",
-        "type": "n8n-nodes-base.aggregate",
-        "typeVersion": 1,
-        "position": [
-          1920,
-          672
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "// 본체/보조자료 구분 → Gemini 프롬프트용 텍스트 조립\nconst inputData = $input.first().json;\nconst files = inputData.files || [];\nconst agencyName = (files[0] || {}).agencyName || '';\n\nconst mainFiles = files.filter(f => f.role === 'main');\nconst supportFiles = files.filter(f => f.role === 'support');\n\nconst mainText = mainFiles.length > 0\n  ? '【주요 실적 파일 (본체 — 카드뉴스, 포스터, 교육결과물 등 실적 자체)】\\n' +\n    mainFiles.map((f, i) =>\n      '[본체파일 ' + (i + 1) + '] ' + f.filename + '\\n' + (f.text || '(내용 없음)')\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nconst supportText = supportFiles.length > 0\n  ? '\\n\\n【보조 자료 파일 (계획서·계획(안)·결과요약서 등 실적을 설명하는 자료)】\\n' +\n    supportFiles.map((f, i) =>\n      '[보조파일 ' + (i + 1) + '] ' + f.filename + '\\n' + (f.text || '(내용 없음)')\n    ).join('\\n\\n---\\n\\n')\n  : '';\n\nreturn [{\n  json: {\n    agencyName,\n    fileCount: files.length,\n    mainFileCount: mainFiles.length,\n    supportFileCount: supportFiles.length,\n    fileListText: (mainText + supportText).substring(0, 50000)\n  }\n}];"
-        },
-        "id": "node-분류준비",
-        "name": "분류 준비",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2160,
-          672
-        ]
-      },
-      {
-        "parameters": {
           "promptType": "define",
-          "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개 (본체 {{ $json.mainFileCount }}개 / 보조자료 {{ $json.supportFileCount }}개)\n\n【업로드된 파일 내용】\n{{ $json.fileListText }}\n\n위 파일들을 분석하여 실적을 분류하고, 기관을 대표하는 실적을 선별하여 각 실적에 대한 첨부7 정성보고서 초안을 작성해주세요.",
+          "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개 (본체 {{ $json.mainFileCount }}개 / 보조자료 {{ $json.supportFileCount }}개)\n\n【⚠️ 실적 수 확인】\n본체 파일이 {{ $json.mainFileCount }}개이므로, 실적은 반드시 {{ $json.mainFileCount }}건입니다.\n각 본체 파일 1개 = 실적 1건. 추가하거나 줄이지 마세요.\n보조자료만 있고 본체가 없으면 보조자료 1개 = 실적 1건.\n\n【업로드된 파일 내용】\n{{ $json.fileListText }}\n\n위 파일들을 분석하여 첨부7 정성보고서 초안을 작성해주세요.\n- 본체 파일 수({{ $json.mainFileCount }}건)와 동일한 수의 실적을 작성하세요.\n- 파일 안의 내용이 아닌, '파일로 대표되는 제작·배포 활동' 자체가 실적입니다.\n- 계획서(보조자료)는 실적으로 계산하지 말고, 동일 실적의 배경·내용 파악에만 활용하세요.",
           "options": {
-            "systemMessage": "당신은 데이터기반행정 활성화 평가 정성보고서(첨부7) 작성 전문가입니다.\n\n【지표 설명】\n지표 3-3-3. 활성화 제고를 위한 다양한 노력\n∎ 기관에서 데이터기반행정을 활성화하기 위해 추진한 다양한 시책 노력을 8점 만점 기준으로 정성 평가\n\n【실적 선별 기준】\n- 아래 유형표를 참고하여 기관의 대표 실적을 선별하여 최대 5건 작성\n- 대표성·독창성·효과성이 높은 실적 우선\n- 동일 유형 내 유사 실적이 여러 개라면 가장 대표적인 1건만 선별\n- 다양한 유형에 걸쳐 고르게 선별하면 높은 점수를 받을 수 있음\n\n【실적 유형 및 예시】\n유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  예시: 데이터기반 정책 추진을 위한 인력 재배치·역할 분담 강화, 분석·활용 역량강화를 위한 개선계획 수립 및 실적점검\n\n유형 2. 기반조성\n  예시: 데이터기반행정을 위한 법·규정 정비·절차·제도 개선, 전담부서 인력 충원·예산확보, 기관 내 성과지표에 분석결과 활용 관련 지표 신설\n\n유형 3. 문화조성 및 성과확산\n  예시: 공모전·경진대회·설명회 등 행사, 유관기관 관계자 간담회, 관련 성과 보도자료 배포·홍보, 우수사례 공유회·사례집 발간, 카드뉴스·포스터 제작·배포\n\n유형 4. AI·데이터 전문인력 양성\n  예시: 기관 자체 교육과정 개발·운영 (행안부 공유 AI 교육과정 활용 가능), AI·데이터 분석 관련 전문인력 채용, AI·데이터 관련 자격증 취득 지원\n\n유형 5. 기타\n  예시: 상기 유형에 해당하지 않는 기관·데이터 특성을 고려한 다양한 노력\n\n【파일 그룹화 규칙】\n- 【주요 실적 파일 (본체)】이 실제 실적(카드뉴스, 포스터, 교육 결과물, 행사 결과물 등)의 본체\n- 【보조 자료 파일】의 계획서·계획(안)·결과요약서는 동일한 이름의 본체 파일과 하나의 실적으로 묶어 내용 보완에 활용\n- 서로 다른 주제·제목의 본체 파일들은 각각 별개 실적으로 처리\n- 보조 자료만 있고 본체가 없는 경우, 보조 자료의 내용을 기반으로 실적 추론\n\n【첨부7 각 항목 작성 기준】\n- 추진배경 및 목적: 이 활동을 한 이유(배경)와 달성하고자 한 것(목적). 계획서·기획 배경 참조.\n- 추진대상: 활동의 수혜자·배포 대상·교육 참가자. 관련 파일에서 대상 정보 파악.\n- 추진내용: 실제로 무엇을 만들었거나 실시했는지. 제작 방식·배포 방식 등 구체적으로 기술.\n- 추진성과(기대효과): 이 활동이 가져온 또는 가져올 효과. 데이터 활용도 향상, 인식 제고 등.\n\n반드시 지정된 JSON 스키마로만 응답하세요."
+            "systemMessage": "당신은 데이터기반행정 활성화 평가 정성보고서(첨부7) 작성 전문가입니다.\n\n【⚠️ 절대 규칙 — 실적이란 무엇인가】\n1. 실적(추진실적) = 업로드된 파일이 나타내는 제작물·활동 자체입니다.\n   - 카드뉴스 PDF → 실적: \"카드뉴스 제작·배포\"\n   - 포스터 PDF → 실적: \"분석결과 포스터 제작·배포\"\n   - 교육자료 PDF → 실적: \"○○ 교육 실시\"\n   - 행사 결과물 PDF → 실적: \"○○ 행사 개최\"\n2. 파일 안의 내용(카드뉴스에 담긴 설명, 포스터에 표시된 수치)은 실적이 아닙니다.\n3. 없는 실적을 절대 만들지 마세요. 본체(main) 파일 수 = 실적 수입니다.\n4. 한 파일 = 한 실적. 한 파일에서 여러 실적을 파생시키지 마세요.\n5. 계획서·계획(안)은 동일 실적의 추진배경·내용 파악에만 활용하세요. 별도 실적이 아닙니다.\n\n【지표 설명】\n지표 3-3-3. 활성화 제고를 위한 다양한 노력\n∎ 기관에서 데이터기반행정을 활성화하기 위해 추진한 다양한 시책 노력을 8점 만점 기준으로 정성 평가\n\n【실적 유형 분류표】\n유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  예시: 역량진단 결과를 활용한 인력 재배치·역할 분담 강화, 개선계획 수립 및 실적점검\n\n유형 2. 기반조성\n  예시: 법·규정 정비·절차·제도 개선, 전담부서 인력 충원·예산확보, 성과지표에 분석결과 활용 지표 신설\n\n유형 3. 문화조성 및 성과확산\n  예시: 공모전·경진대회·설명회 등 행사, 카드뉴스·포스터 제작·배포, 우수사례 공유회·사례집 발간, 보도자료 배포\n\n유형 4. AI·데이터 전문인력 양성\n  예시: 기관 자체 교육과정 개발·운영, 전문인력 채용, 자격증 취득 지원\n\n유형 5. 기타\n  예시: 기관·데이터 특성을 고려한 기타 노력\n\n【파일 그룹화 규칙】\n- 【본체 파일】: 실적 자체인 파일 (카드뉴스, 포스터, 교육 결과물, 행사 결과물 등)\n  → 본체 파일 1개 = 실적 1건\n- 【보조 자료 파일】: 계획서·계획(안)·결과요약서 등 실적을 설명하는 문서\n  → 실적 수에 포함하지 않음. 동일 주제 본체 파일의 추진배경·내용 파악에만 활용\n- 보조 자료만 있고 본체가 없으면: 보조 자료 1개 = 실적 1건으로 처리\n\n【각 항목 작성 기준 — 반드시 이 기준으로만 작성】\n\n▶ 실적명\n- 파일명에서 기관명을 제거한 핵심 제작물명·활동명\n- 예) 파일명 \"○○기관 데이터기반행정 카드뉴스.pdf\" → 실적명 \"데이터기반행정 카드뉴스\"\n- 예) 파일명 \"분석결과 포스터.pdf\" → 실적명 \"분석결과 포스터 제작·배포\"\n\n▶ 추진배경 및 목적\n- 이 제작물·활동을 기획하게 된 배경(문제 인식, 필요성)과 달성하려는 목적\n- 계획서(보조자료)에 배경·목적 내용이 있으면 그 내용을 그대로 활용\n- 계획서 없으면 제작물의 성격(홍보, 교육, 인식 제고 등)과 지표 맥락에서 자연스럽게 추론\n- ❌ 파일 안의 데이터·수치·세부 내용을 나열하지 말 것\n\n▶ 추진대상\n- 이 활동의 수혜자·배포 대상·교육 참가자\n- 파일에 명시된 경우 그대로 기재, 없으면 맥락에서 추론 (내부 직원 대상, 관련 기관 등)\n\n▶ 추진내용\n- 무엇을(제작물명·활동명 포함) + 어떻게 했는지(제작 방식·배포 방식·실시 방법)\n- 예) \"데이터기반행정 소개, 사례, 추진 전략 등의 내용을 담은 카드뉴스를 제작하여 전부서에 배포\"\n- 예) \"2025년 공공데이터 활용도 분석 결과를 인포그래픽 형식의 포스터로 제작하여 전부서에 배포\"\n- 계획서에 구체적인 제작 대상·추진 방식이 있으면 반드시 활용\n- ❌ 파일 내부의 세부 데이터·항목 목록을 나열하지 말 것\n\n▶ 추진성과(기대효과)\n- 이 제작·배포·실시 활동이 가져온 또는 기대되는 효과\n- 예) 내부 구성원의 인지도 제고와 자발적 참여 유도, 데이터기반행정 문화 정착 도모\n- 예) 기관의 데이터 분석 성과를 홍보하여 내부 구성원의 이해도와 참여 의지를 높이고 데이터 기반 의사결정 문화 정착\n- ❌ 파일 내 데이터·수치 나열 금지\n\n반드시 지정된 JSON 스키마로만 응답하세요."
           }
         },
         "id": "node-agent",
@@ -1015,111 +1052,25 @@
         "type": "@n8n/n8n-nodes-langchain.agent",
         "typeVersion": 1.7,
         "position": [
-          2400,
-          672
+          2384,
+          352
         ]
       },
       {
         "parameters": {
-          "modelName": "models/gemini-2.0-flash",
-          "options": {
-            "maxOutputTokens": 8000
-          }
+          "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"description\":\"분류된 실적 목록 (최대 5건, 대표성 높은 순)\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\",\"description\":\"실적 번호 (1부터 시작)\"},\"type\":{\"type\":\"string\",\"description\":\"실적 유형 (역량진단 결과 활용/기반조성/문화조성 및 성과확산/AI·데이터 전문인력 양성/기타)\"},\"title\":{\"type\":\"string\",\"description\":\"실적 제목 (간결하게)\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"이 실적에 해당하는 파일명 목록 (본체+보조자료 포함)\"},\"background\":{\"type\":\"string\",\"description\":\"추진배경 및 목적\"},\"target\":{\"type\":\"string\",\"description\":\"추진대상\"},\"content\":{\"type\":\"string\",\"description\":\"추진내용\"},\"outcome\":{\"type\":\"string\",\"description\":\"추진성과(기대효과)\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\",\"description\":\"전체 실적 요약 (1~2문장)\"}},\"required\":[\"achievements\",\"summary\"]}"
         },
-        "id": "node-gemini-lm",
-        "name": "Google Gemini (Agent용)",
-        "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-        "typeVersion": 1,
+        "type": "@n8n/n8n-nodes-langchain.toolCode",
+        "typeVersion": 1.3,
         "position": [
-          2320,
-          832
+          2576,
+          544
         ],
-        "credentials": {
-          "googlePalmApi": {
-            "id": "GjifZesv3uzCC7ex",
-            "name": "Google Gemini(PaLM) Api account"
-          }
-        }
-      },
-      {
-        "parameters": {
-          "schemaType": "manual",
-          "inputSchema": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"description\":\"분류된 실적 목록 (최대 5건, 대표성 높은 순)\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\",\"description\":\"실적 번호 (1부터 시작)\"},\"type\":{\"type\":\"string\",\"description\":\"실적 유형 (역량진단 결과 활용/기반조성/문화조성 및 성과확산/AI·데이터 전문인력 양성/기타)\"},\"title\":{\"type\":\"string\",\"description\":\"실적 제목 (간결하게)\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"이 실적에 해당하는 파일명 목록 (본체+보조자료 포함)\"},\"background\":{\"type\":\"string\",\"description\":\"추진배경 및 목적\"},\"target\":{\"type\":\"string\",\"description\":\"추진대상\"},\"content\":{\"type\":\"string\",\"description\":\"추진내용\"},\"outcome\":{\"type\":\"string\",\"description\":\"추진성과(기대효과)\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\",\"description\":\"전체 실적 요약 (1~2문장)\"}},\"required\":[\"achievements\",\"summary\"]}"
-        },
-        "id": "node-sop",
-        "name": "초안 출력 파서",
-        "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-        "typeVersion": 1.2,
-        "position": [
-          2560,
-          832
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "// AI 출력 정제화 + 첨부7 양식 HTML 변환\nconst outputRaw = $input.first().json.output;\n\n// 1) 마크다운 코드펜스 제거\nfunction stripCodeFence(str) {\n  if (typeof str !== 'string') return str;\n  const m = str.match(/```(?:json)?[\\s\\S]*?({[\\s\\S]*})/); // JSON 객체 직접 추출\n  if (m) return m[1].trim();\n  return str.trim();\n}\n\n// 2) Gemini가 다른 필드명으로 돌려줄 때 정규화\nfunction normalizeData(raw) {\n  if (!raw) return { achievements: [], summary: '' };\n\n  // 이미 achievements 형식이면 그대로\n  if (Array.isArray(raw.achievements) && raw.achievements.length > 0) return raw;\n\n  // report[] 또는 기타 배열 필드 사용 시 매핑\n  const src = raw.report || raw.results || raw['실적'] || [];\n  const achievements = src.map(function(item, i) {\n    // 배경+목적을 하나로 합치\n    var bg = item.background || item.backgroundAndPurpose || item['추진배경'] || item['추진배경및목적'] || '';\n    if (item.purpose && !bg.includes(item.purpose)) bg = (bg + '\\n\\n■ 목적: ' + item.purpose).trim();\n    return {\n      achievementNumber: item.achievementNumber || item.number || (i + 1),\n      type: item.type || item['유형'] || '기타',\n      title: item.title || item['제목'] || item.name || '',\n      relatedFiles: item.relatedFiles || item.files || [],\n      background: bg,\n      target: item.target || item['추진대상'] || '',\n      content: item.content || item['추진내용'] || '',\n      // result, achievementAndExpectedEffect, outcome 등 다양한 필드명 대응\n      outcome: item.outcome || item.result || item.achievementAndExpectedEffect\n             || item.achievementResult || item['추진성과'] || item['기대효과'] || ''\n    };\n  });\n\n  return {\n    achievements: achievements,\n    summary: raw.summary || ('접수된 파일을 분석하여 선별한 대표 실적 ' + achievements.length + '건입니다.')\n  };\n}\n\nvar data;\ntry {\n  var cleaned = stripCodeFence(outputRaw);\n  data = normalizeData(JSON.parse(cleaned));\n} catch(e) {\n  data = { achievements: [], summary: '⚠️ 출력 파싱 실패. n8n 실행 로그를 확인해주세요. (' + String(e.message) + ')' };\n}\n\nvar achievements = data.achievements || [];\n\nvar html = '<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"UTF-8\"><title>첨부7 정성보고서 초안</title>';\nhtml += '<style>';\nhtml += '@media print { .no-print { display: none !important; } body { margin: 0; } .achievement { page-break-inside: avoid; } }';\nhtml += 'body{font-family:\"Malgun Gothic\",sans-serif;max-width:960px;margin:20px auto;padding:24px;line-height:1.7;color:#222}';\nhtml += 'h1{color:#1a3a5c;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:6px}';\nhtml += '.meta{color:#666;font-size:14px;margin-bottom:8px}';\nhtml += '.print-btn{display:inline-block;background:#2980b9;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;border:none;font-size:14px;margin-bottom:20px;font-family:inherit}';\nhtml += '.achievement{background:#f8f9fa;border-left:5px solid #2980b9;margin:28px 0;padding:20px 24px;border-radius:4px}';\nhtml += '.ach-header{margin:0 0 10px 0}';\nhtml += '.ach-num{color:#1a3a5c;font-size:17px;font-weight:bold}';\nhtml += '.badge{background:#2980b9;color:#fff;padding:3px 12px;border-radius:12px;font-size:12px;margin-left:10px;vertical-align:middle}';\nhtml += '.files{color:#888;font-size:13px;margin:6px 0 14px 0}';\nhtml += '.row{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e9ecef}';\nhtml += '.row:last-child{border-bottom:none}';\nhtml += '.lbl{font-weight:bold;color:#555;font-size:14px;padding-top:2px}';\nhtml += '.val{color:#222;font-size:14px;white-space:pre-wrap}';\nhtml += '.summary{background:#e8f4fd;border:1px solid #bee3f8;padding:14px 18px;border-radius:4px;margin-bottom:24px;font-size:14px}';\nhtml += '.footer{color:#aaa;font-size:12px;margin-top:32px;padding-top:12px;border-top:1px solid #eee}';\nhtml += '</style></head><body>';\n\nhtml += '<h1>첨부7 정성보고서 초안</h1>';\nhtml += '<div class=\"meta\">선별 실적 ' + achievements.length + '건 | AI 자동 생성 초안 — 반드시 검토 후 사용</div>';\nhtml += '<button class=\"print-btn no-print\" onclick=\"window.print()\">🖨️ PDF로 저장 (인쇄)</button>';\n\nif (data.summary) {\n  html += '<div class=\"summary\">📌 ' + data.summary + '</div>';\n}\n\nachievements.forEach(function(ach, idx) {\n  var files = (ach.relatedFiles || []).join(' · ');\n  html += '<div class=\"achievement\">';\n  html += '<div class=\"ach-header\">';\n  html += '<span class=\"ach-num\">실적 ' + (idx + 1) + '. ' + (ach.title || '') + '</span>';\n  if (ach.type) html += '<span class=\"badge\">' + ach.type + '</span>';\n  html += '</div>';\n  if (files) html += '<div class=\"files\">📎 ' + files + '</div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진배경 및 목적</div><div class=\"val\">' + (ach.background || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진대상</div><div class=\"val\">' + (ach.target || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진내용</div><div class=\"val\">' + (ach.content || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진성과(기대효과)</div><div class=\"val\">' + (ach.outcome || '') + '</div></div>';\n  html += '</div>';\n});\n\nhtml += '<div class=\"footer\">본 초안은 AI가 생성한 것입니다. 담당자가 반드시 검토·수정 후 활용하시기 바랍니다.</div>';\nhtml += '</body></html>';\n\nreturn [{ json: { html: html, achievementCount: achievements.length, summary: data.summary || '' } }];"
-        },
-        "id": "node-html",
-        "name": "HTML 생성",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          2640,
-          672
-        ]
-      },
-      {
-        "parameters": {
-          "respondWith": "text",
-          "responseBody": "={{ $json.html }}",
-          "options": {
-            "responseHeaders": {
-              "entries": [
-                {
-                  "name": "Content-Type",
-                  "value": "text/html; charset=utf-8"
-                }
-              ]
-            }
-          }
-        },
-        "id": "node-respond",
-        "name": "HTML 응답",
-        "type": "n8n-nodes-base.respondToWebhook",
-        "typeVersion": 1.1,
-        "position": [
-          2880,
-          672
-        ]
+        "id": "13c3b19f-4cd4-45b8-9aac-d6882e03b214",
+        "name": "초안 출력 파서"
       }
     ],
     "connections": {
-      "증적 업로드": {
-        "main": [
-          [
-            {
-              "node": "지표별 분류",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "지표별 분류": {
-        "main": [
-          [],
-          [],
-          [],
-          [
-            {
-              "node": "파일 정규화",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          []
-        ]
-      },
       "파일 정규화": {
         "main": [
           [
@@ -1197,17 +1148,6 @@
           ]
         ]
       },
-      "실적 분류 & 초안 작성": {
-        "main": [
-          [
-            {
-              "node": "HTML 생성",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
       "Google Gemini (Agent용)": {
         "ai_languageModel": [
           [
@@ -1219,12 +1159,12 @@
           ]
         ]
       },
-      "초안 출력 파서": {
-        "ai_outputParser": [
+      "증적 업로드": {
+        "main": [
           [
             {
-              "node": "실적 분류 & 초안 작성",
-              "type": "ai_outputParser",
+              "node": "지표별 분류",
+              "type": "main",
               "index": 0
             }
           ]
@@ -1234,8 +1174,44 @@
         "main": [
           [
             {
-              "node": "HTML 응답",
+              "node": "HTML 저장",
               "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "지표별 분류": {
+        "main": [
+          [],
+          [],
+          [],
+          [
+            {
+              "node": "파일 정규화",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "실적 분류 & 초안 작성": {
+        "main": [
+          [
+            {
+              "node": "HTML 생성",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "초안 출력 파서": {
+        "ai_tool": [
+          [
+            {
+              "node": "실적 분류 & 초안 작성",
+              "type": "ai_tool",
               "index": 0
             }
           ]
@@ -1248,34 +1224,18 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-03-20T05:21:34.801Z",
-        "id": 27,
+        "createdAt": "2026-03-20T07:50:38.627Z",
+        "id": 63,
         "workflowId": "7ljk74wFhpvgz3jy",
-        "versionId": "8f8adc65-5c0b-4563-bf44-5397a74b037d",
+        "versionId": "0a1530d0-312e-43be-b895-07da274e2884",
         "event": "activated",
         "userId": "4abf0400-2871-4f8d-802c-e275d8b8f939"
       },
       {
-        "createdAt": "2026-03-20T05:21:42.823Z",
-        "id": 29,
+        "createdAt": "2026-03-20T07:50:38.603Z",
+        "id": 62,
         "workflowId": "7ljk74wFhpvgz3jy",
-        "versionId": "8f8adc65-5c0b-4563-bf44-5397a74b037d",
-        "event": "activated",
-        "userId": "4abf0400-2871-4f8d-802c-e275d8b8f939"
-      },
-      {
-        "createdAt": "2026-03-20T05:21:34.774Z",
-        "id": 26,
-        "workflowId": "7ljk74wFhpvgz3jy",
-        "versionId": "8f8adc65-5c0b-4563-bf44-5397a74b037d",
-        "event": "deactivated",
-        "userId": "4abf0400-2871-4f8d-802c-e275d8b8f939"
-      },
-      {
-        "createdAt": "2026-03-20T05:21:42.799Z",
-        "id": 28,
-        "workflowId": "7ljk74wFhpvgz3jy",
-        "versionId": "8f8adc65-5c0b-4563-bf44-5397a74b037d",
+        "versionId": "0a1530d0-312e-43be-b895-07da274e2884",
         "event": "deactivated",
         "userId": "4abf0400-2871-4f8d-802c-e275d8b8f939"
       }
