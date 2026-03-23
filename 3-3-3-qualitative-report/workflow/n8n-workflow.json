@@ -1,58 +1,27 @@
 {
-  "updatedAt": "2026-03-20T07:50:38.554Z",
+  "updatedAt": "2026-03-23T00:53:47.214Z",
   "createdAt": "2026-03-16T04:28:06.570Z",
   "id": "7ljk74wFhpvgz3jy",
-  "name": "(정성보고서) 데이터기반행정 활용도 제고",
+  "name": "(정성보고서) 데이터기반행정 활성화 제고 노력",
   "description": null,
   "active": true,
   "isArchived": false,
   "nodes": [
     {
       "parameters": {
-        "content": "### 1. 데이터 업로드 \n* 설명 \n: 평가지표별 산출물(PDF) 업로드 및 사용자 평가지표 입력\n",
-        "height": 304,
-        "width": 246,
+        "content": "### 1. 사용자 입력\n* 설명 \n: 활성화 제고 노력 실적 업로드 및 사용자 평가지표 입력\n",
+        "height": 416,
+        "width": 454,
         "color": 2
       },
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
         208,
-        256
+        224
       ],
       "id": "f9cb8fd8-10ed-48c9-8dd7-7cde442990aa",
       "name": "Sticky Note"
-    },
-    {
-      "parameters": {
-        "content": "## I. 공통 영역",
-        "height": 384,
-        "width": 992
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        192,
-        192
-      ],
-      "id": "1d8391e8-34f6-4ad2-b54f-001e9b742cd7",
-      "name": "Sticky Note5"
-    },
-    {
-      "parameters": {
-        "content": "## II. 4. 데이터기반행정 활용도 제고\n### 첨부7 정성보고서 초안 자동 생성\n`파일 정규화 → Gemini 파일 업로드(Files API) → 요청 조립 → Gemini 내용 생성 → 역할분류+텍스트정리 → 취합 → 분류준비 → Gemini 실적분류+초안작성 → HTML 응답`\n\n**핵심 개선:** ① Task Runner 환경에서 binary 직접 처리 불가 → Files API 업로드 방식으로 전환 ② 파일명 기반 본체/보조자료 역할 분류 ③ 유형별 예시+선별기준 반영 ④ 텍스트 15,000자",
-        "height": 220,
-        "width": 2240,
-        "color": 5
-      },
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        704,
-        432
-      ],
-      "id": "note-section4",
-      "name": "Sticky Note4"
     },
     {
       "parameters": {
@@ -85,7 +54,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        944,
+        832,
         352
       ]
     },
@@ -98,7 +67,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1184,
+        976,
         352
       ]
     },
@@ -120,7 +89,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1424,
+        1104,
         352
       ]
     },
@@ -133,7 +102,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1664,
+        1232,
         352
       ]
     },
@@ -148,7 +117,7 @@
       "type": "n8n-nodes-base.aggregate",
       "typeVersion": 1,
       "position": [
-        1904,
+        1344,
         352
       ]
     },
@@ -161,7 +130,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2144,
+        1552,
         352
       ]
     },
@@ -177,8 +146,8 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        2336,
-        528
+        1632,
+        496
       ]
     },
     {
@@ -190,65 +159,9 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2752,
-        368
+        2128,
+        352
       ]
-    },
-    {
-      "parameters": {
-        "formTitle": "PDF 업로드",
-        "formDescription": "증적자료 업로드",
-        "formFields": {
-          "values": [
-            {
-              "fieldLabel": "기관명을 입력하세요",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "증적자료를 업로드하세요",
-              "fieldType": "file",
-              "acceptFileTypes": ".pdf",
-              "requiredField": true
-            },
-            {
-              "fieldLabel": "지표 선택",
-              "fieldType": "dropdown",
-              "defaultValue": "지표를 선택하세요",
-              "fieldOptions": {
-                "values": [
-                  {
-                    "option": "1. AI 친화·고가치"
-                  },
-                  {
-                    "option": "2. 공공데이터 활용도 제고"
-                  },
-                  {
-                    "option": "3. AI 도입·활용 사례"
-                  },
-                  {
-                    "option": "4. 데이터기반행정 활용도 제고"
-                  },
-                  {
-                    "option": "5. 공유데이터 제공 노력"
-                  }
-                ]
-              },
-              "requiredField": true
-            }
-          ]
-        },
-        "responseMode": "lastNode",
-        "options": {}
-      },
-      "id": "8cae2558-798e-403f-bc34-6790a72192b0",
-      "name": "증적 업로드",
-      "type": "n8n-nodes-base.formTrigger",
-      "typeVersion": 2.2,
-      "position": [
-        288,
-        368
-      ],
-      "webhookId": "1061e240-55af-48fd-a1c3-a6807b55ca7e"
     },
     {
       "parameters": {
@@ -259,8 +172,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2880,
-        368
+        2272,
+        352
       ]
     },
     {
@@ -396,16 +309,16 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        544,
+        496,
         320
       ]
     },
     {
       "parameters": {
         "promptType": "define",
-        "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개 (본체 {{ $json.mainFileCount }}개 / 보조자료 {{ $json.supportFileCount }}개)\n\n【⚠️ 실적 수 확인】\n본체 파일이 {{ $json.mainFileCount }}개이므로, 실적은 반드시 {{ $json.mainFileCount }}건입니다.\n각 본체 파일 1개 = 실적 1건. 추가하거나 줄이지 마세요.\n보조자료만 있고 본체가 없으면 보조자료 1개 = 실적 1건.\n\n【업로드된 파일 내용】\n{{ $json.fileListText }}\n\n위 파일들을 분석하여 첨부7 정성보고서 초안을 작성해주세요.\n- 본체 파일 수({{ $json.mainFileCount }}건)와 동일한 수의 실적을 작성하세요.\n- 파일 안의 내용이 아닌, '파일로 대표되는 제작·배포 활동' 자체가 실적입니다.\n- 계획서(보조자료)는 실적으로 계산하지 말고, 동일 실적의 배경·내용 파악에만 활용하세요.",
+        "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개 (본체 {{ $json.mainFileCount }}개 / 보조자료 {{ $json.supportFileCount }}개)\n\n【실적 수 확인】\n본체 파일이 {{ $json.mainFileCount }}개이므로, 실적을 반드시 {{ $json.mainFileCount }}건 작성하세요.\n보조자료만 있고 본체가 없으면 보조자료 수만큼 작성하세요.\n선별하거나 줄이지 마세요. 올라온 파일 전부 작성합니다.\n\n【업로드된 파일 내용】\n{{ $json.fileListText }}\n\n위 파일들을 분석하여 첨부7 정성보고서 초안을 작성해주세요.\n- 본체 파일 1개 = 실적 1건. 빠짐없이 전부 작성하세요.\n- 파일 안의 내용이 아닌, 파일로 대표되는 제작·배포 활동이 실적입니다.\n- 계획서(보조자료)는 실적으로 세지 말고, 같은 실적의 배경·내용 파악에만 활용하세요.",
         "options": {
-          "systemMessage": "당신은 데이터기반행정 활성화 평가 정성보고서(첨부7) 작성 전문가입니다.\n\n【⚠️ 절대 규칙 — 실적이란 무엇인가】\n1. 실적(추진실적) = 업로드된 파일이 나타내는 제작물·활동 자체입니다.\n   - 카드뉴스 PDF → 실적: \"카드뉴스 제작·배포\"\n   - 포스터 PDF → 실적: \"분석결과 포스터 제작·배포\"\n   - 교육자료 PDF → 실적: \"○○ 교육 실시\"\n   - 행사 결과물 PDF → 실적: \"○○ 행사 개최\"\n2. 파일 안의 내용(카드뉴스에 담긴 설명, 포스터에 표시된 수치)은 실적이 아닙니다.\n3. 없는 실적을 절대 만들지 마세요. 본체(main) 파일 수 = 실적 수입니다.\n4. 한 파일 = 한 실적. 한 파일에서 여러 실적을 파생시키지 마세요.\n5. 계획서·계획(안)은 동일 실적의 추진배경·내용 파악에만 활용하세요. 별도 실적이 아닙니다.\n\n【지표 설명】\n지표 3-3-3. 활성화 제고를 위한 다양한 노력\n∎ 기관에서 데이터기반행정을 활성화하기 위해 추진한 다양한 시책 노력을 8점 만점 기준으로 정성 평가\n\n【실적 유형 분류표】\n유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  예시: 역량진단 결과를 활용한 인력 재배치·역할 분담 강화, 개선계획 수립 및 실적점검\n\n유형 2. 기반조성\n  예시: 법·규정 정비·절차·제도 개선, 전담부서 인력 충원·예산확보, 성과지표에 분석결과 활용 지표 신설\n\n유형 3. 문화조성 및 성과확산\n  예시: 공모전·경진대회·설명회 등 행사, 카드뉴스·포스터 제작·배포, 우수사례 공유회·사례집 발간, 보도자료 배포\n\n유형 4. AI·데이터 전문인력 양성\n  예시: 기관 자체 교육과정 개발·운영, 전문인력 채용, 자격증 취득 지원\n\n유형 5. 기타\n  예시: 기관·데이터 특성을 고려한 기타 노력\n\n【파일 그룹화 규칙】\n- 【본체 파일】: 실적 자체인 파일 (카드뉴스, 포스터, 교육 결과물, 행사 결과물 등)\n  → 본체 파일 1개 = 실적 1건\n- 【보조 자료 파일】: 계획서·계획(안)·결과요약서 등 실적을 설명하는 문서\n  → 실적 수에 포함하지 않음. 동일 주제 본체 파일의 추진배경·내용 파악에만 활용\n- 보조 자료만 있고 본체가 없으면: 보조 자료 1개 = 실적 1건으로 처리\n\n【각 항목 작성 기준 — 반드시 이 기준으로만 작성】\n\n▶ 실적명\n- 파일명에서 기관명을 제거한 핵심 제작물명·활동명\n- 예) 파일명 \"○○기관 데이터기반행정 카드뉴스.pdf\" → 실적명 \"데이터기반행정 카드뉴스\"\n- 예) 파일명 \"분석결과 포스터.pdf\" → 실적명 \"분석결과 포스터 제작·배포\"\n\n▶ 추진배경 및 목적\n- 이 제작물·활동을 기획하게 된 배경(문제 인식, 필요성)과 달성하려는 목적\n- 계획서(보조자료)에 배경·목적 내용이 있으면 그 내용을 그대로 활용\n- 계획서 없으면 제작물의 성격(홍보, 교육, 인식 제고 등)과 지표 맥락에서 자연스럽게 추론\n- ❌ 파일 안의 데이터·수치·세부 내용을 나열하지 말 것\n\n▶ 추진대상\n- 이 활동의 수혜자·배포 대상·교육 참가자\n- 파일에 명시된 경우 그대로 기재, 없으면 맥락에서 추론 (내부 직원 대상, 관련 기관 등)\n\n▶ 추진내용\n- 무엇을(제작물명·활동명 포함) + 어떻게 했는지(제작 방식·배포 방식·실시 방법)\n- 예) \"데이터기반행정 소개, 사례, 추진 전략 등의 내용을 담은 카드뉴스를 제작하여 전부서에 배포\"\n- 예) \"2025년 공공데이터 활용도 분석 결과를 인포그래픽 형식의 포스터로 제작하여 전부서에 배포\"\n- 계획서에 구체적인 제작 대상·추진 방식이 있으면 반드시 활용\n- ❌ 파일 내부의 세부 데이터·항목 목록을 나열하지 말 것\n\n▶ 추진성과(기대효과)\n- 이 제작·배포·실시 활동이 가져온 또는 기대되는 효과\n- 예) 내부 구성원의 인지도 제고와 자발적 참여 유도, 데이터기반행정 문화 정착 도모\n- 예) 기관의 데이터 분석 성과를 홍보하여 내부 구성원의 이해도와 참여 의지를 높이고 데이터 기반 의사결정 문화 정착\n- ❌ 파일 내 데이터·수치 나열 금지\n\n반드시 지정된 JSON 스키마로만 응답하세요."
+          "systemMessage": "당신은 데이터기반행정 활성화 평가 정성보고서(첨부7) 작성 전문가입니다.\n\n【⚠️ 절대 규칙 — 실적이란 무엇인가】\n1. 실적(추진실적) = 업로드된 파일이 나타내는 제작물·활동 자체입니다.\n   - 카드뉴스 PDF/이미지 → 실적: \"카드뉴스 제작·배포\"\n   - 포스터 PDF → 실적: \"분석결과 포스터 제작·배포\"\n   - 교육자료 PDF → 실적: \"○○ 교육 실시\"\n2. 파일 안의 내용(카드뉴스에 담긴 설명, 포스터에 표시된 수치)은 실적이 아닙니다.\n3. 선별하지 마세요. 본체 파일 수 = 실적 수. 올라온 것은 전부 작성합니다.\n4. 한 파일 = 한 실적. 한 파일에서 여러 실적을 파생시키지 마세요.\n5. 계획서·계획(안)은 배경·내용 파악에만 활용. 별도 실적이 아닙니다.\n\n【지표 설명】\n지표 3-3-3. 활성화 제고를 위한 다양한 노력\n∎ 기관에서 데이터기반행정을 활성화하기 위해 추진한 다양한 시책 노력을 8점 만점 기준으로 정성 평가\n\n【실적 유형 분류표】\n유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  예시: 역량진단 결과를 활용한 인력 재배치, 개선계획 수립 및 실적점검\n\n유형 2. 기반조성\n  예시: 법·규정 정비·절차·제도 개선, 전담부서 인력 충원·예산확보, 성과지표에 분석결과 활용 지표 신설\n\n유형 3. 문화조성 및 성과확산\n  예시: 공모전·경진대회·설명회 등 행사, 카드뉴스·포스터 제작·배포, 우수사례 공유회, 보도자료 배포\n\n유형 4. AI·데이터 전문인력 양성\n  예시: 자체 교육과정 개발·운영, 전문인력 채용, 자격증 취득 지원\n\n유형 5. 기타\n  예시: 기관·데이터 특성을 고려한 기타 노력\n\n【파일 그룹화 규칙】\n- 【본체 파일】: 실적 자체인 파일 (카드뉴스, 포스터, 교육 결과물, 행사 결과물 등)\n  → 본체 파일 1개 = 실적 1건\n- 【보조 자료 파일】: 계획서·계획(안)·결과요약서 등 실적을 설명하는 문서\n  → 실적 수에 포함하지 않음. 동일 주제 본체 파일의 배경·내용 파악에만 활용\n- 보조 자료만 있고 본체가 없으면: 보조 자료 1개 = 실적 1건으로 처리\n\n【각 항목 작성 기준 — 반드시 이 기준으로만 작성】\n\n▶ 실적명\n- 파일명에서 기관명을 제거한 핵심 제작물명·활동명\n- 예) \"데이터기반행정 카드뉴스\", \"분석결과 포스터\"\n\n▶ 추진배경 및 목적\n- 이 제작물·활동을 기획하게 된 배경(문제 인식, 필요성)과 달성하려는 목적\n- 계획서(보조자료)에 배경·목적 내용이 있으면 그대로 활용\n- 계획서 없으면 제작물 성격(홍보, 교육, 인식 제고 등)과 지표 맥락에서 추론\n- ❌ 파일 안의 데이터·수치·세부 내용을 나열하지 말 것\n\n▶ 추진대상\n- 이 활동의 수혜자·배포 대상·교육 대상\n- 파일에 명시된 경우 그대로 기재, 없으면 맥락에서 추론(내부 직원, 관련 기관 등)\n\n▶ 추진내용\n- 무엇을(제작물명·활동명 포함) + 어떻게 했는지(제작 방식·배포 방식·실시 방법)\n- 예) \"데이터기반행정 소개, 사례, 추진 전략 등의 내용을 담은 카드뉴스를 제작하여 전부서에 배포\"\n- 예) \"2025년 공공데이터 활용도 분석 결과를 인포그래픽 형식의 포스터로 제작하여 전부서에 배포\"\n- 계획서에 구체적인 제작 대상·추진 방식이 있으면 반드시 활용\n- ❌ 파일 내부의 세부 데이터·항목 목록을 나열하지 말 것\n\n▶ 추진성과(기대효과)\n- 이 제작·배포·실시 활동이 가져온 또는 기대되는 효과\n- 예) 내부 구성원의 인지도 제고와 자발적 참여 유도, 데이터기반행정 문화 정착 도모\n- 예) 기관 데이터 분석 성과를 홍보하여 내부 구성원의 이해도와 참여 의지를 높이고 데이터 기반 의사결정 문화 정착\n- ❌ 파일 내 데이터·수치 나열 금지\n\n반드시 지정된 JSON 스키마로만 응답하세요."
         }
       },
       "id": "node-agent",
@@ -413,22 +326,126 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        2384,
+        1712,
         352
       ]
     },
     {
       "parameters": {
-        "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"description\":\"분류된 실적 목록 (최대 5건, 대표성 높은 순)\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\",\"description\":\"실적 번호 (1부터 시작)\"},\"type\":{\"type\":\"string\",\"description\":\"실적 유형 (역량진단 결과 활용/기반조성/문화조성 및 성과확산/AI·데이터 전문인력 양성/기타)\"},\"title\":{\"type\":\"string\",\"description\":\"실적 제목 (간결하게)\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"이 실적에 해당하는 파일명 목록 (본체+보조자료 포함)\"},\"background\":{\"type\":\"string\",\"description\":\"추진배경 및 목적\"},\"target\":{\"type\":\"string\",\"description\":\"추진대상\"},\"content\":{\"type\":\"string\",\"description\":\"추진내용\"},\"outcome\":{\"type\":\"string\",\"description\":\"추진성과(기대효과)\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\",\"description\":\"전체 실적 요약 (1~2문장)\"}},\"required\":[\"achievements\",\"summary\"]}"
+        "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"description\":\"작성된 실적 목록. 본체 파일 수와 동일한 수로 작성. 선별하지 말고 전부 작성.\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\",\"description\":\"실적 번호 (1부터 시작)\"},\"type\":{\"type\":\"string\",\"description\":\"실적 유형 (역량진단 결과 활용/기반조성/문화조성 및 성과확산/AI·데이터 전문인력 양성/기타)\"},\"title\":{\"type\":\"string\",\"description\":\"실적 제목 (파일명 기반 핵심 제작물명·활동명)\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"이 실적에 해당하는 파일명 목록 (본체+보조자료 포함)\"},\"background\":{\"type\":\"string\",\"description\":\"추진배경 및 목적\"},\"target\":{\"type\":\"string\",\"description\":\"추진대상\"},\"content\":{\"type\":\"string\",\"description\":\"추진내용\"},\"outcome\":{\"type\":\"string\",\"description\":\"추진성과(기대효과)\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\",\"description\":\"전체 실적 요약 (1~2문장)\"}},\"required\":[\"achievements\",\"summary\"]}"
       },
       "type": "@n8n/n8n-nodes-langchain.toolCode",
       "typeVersion": 1.3,
       "position": [
-        2576,
-        544
+        1856,
+        528
       ],
       "id": "13c3b19f-4cd4-45b8-9aac-d6882e03b214",
       "name": "초안 출력 파서"
+    },
+    {
+      "parameters": {
+        "formTitle": "PDF 업로드",
+        "formDescription": "증적자료 업로드",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "기관명을 입력하세요",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "증적자료를 업로드하세요",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "지표 선택",
+              "fieldType": "dropdown",
+              "defaultValue": "지표를 선택하세요",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "1. AI 친화·고가치"
+                  },
+                  {
+                    "option": "2. 공공데이터 활용도 제고"
+                  },
+                  {
+                    "option": "3. AI 도입·활용 사례"
+                  },
+                  {
+                    "option": "4. 데이터기반행정 활용도 제고"
+                  },
+                  {
+                    "option": "5. 공유데이터 제공 노력"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "8cae2558-798e-403f-bc34-6790a72192b0",
+      "name": "자료 업로드",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        288,
+        368
+      ],
+      "webhookId": "1061e240-55af-48fd-a1c3-a6807b55ca7e"
+    },
+    {
+      "parameters": {
+        "content": "### 2. PDF 텍스트 추출",
+        "height": 416,
+        "width": 806,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        672,
+        224
+      ],
+      "id": "53b56df4-31a6-4e35-bee7-099246316d4a",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "### 3. 분석, 초안 작성",
+        "height": 416,
+        "width": 502,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1504,
+        224
+      ],
+      "id": "66e55689-5c71-4ec2-8239-8999b3b23f97",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "### 4. 결과 출력",
+        "height": 416,
+        "width": 502,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        224
+      ],
+      "id": "1aec9b5f-167d-4c7e-bd67-4aea5a0d9437",
+      "name": "Sticky Note3"
     }
   ],
   "connections": {
@@ -520,17 +537,6 @@
         ]
       ]
     },
-    "증적 업로드": {
-      "main": [
-        [
-          {
-            "node": "지표별 분류",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "HTML 생성": {
       "main": [
         [
@@ -577,6 +583,17 @@
           }
         ]
       ]
+    },
+    "자료 업로드": {
+      "main": [
+        [
+          {
+            "node": "지표별 분류",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -590,10 +607,88 @@
   "meta": {
     "templateCredsSetupCompleted": true
   },
-  "pinData": {},
-  "versionId": "0a1530d0-312e-43be-b895-07da274e2884",
-  "activeVersionId": "0a1530d0-312e-43be-b895-07da274e2884",
-  "versionCounter": 366,
+  "pinData": {
+    "자료 업로드": [
+      {
+        "json": {
+          "기관명을 입력하세요": "ㅎㄱㅎ",
+          "증적자료를 업로드하세요": [
+            {
+              "filename": "2025년 한국학중앙연구원 데이터기반행정 카드 뉴스.pdf",
+              "mimetype": "application/pdf",
+              "size": 1058633
+            },
+            {
+              "filename": "2025년 한국학중앙연구원 데이터기반행정 카드뉴스 제작 계획(안).pdf",
+              "mimetype": "application/pdf",
+              "size": 112257
+            },
+            {
+              "filename": "2025년 한국학중앙연구원 분석결과 포스터 제작 계획(안).pdf",
+              "mimetype": "application/pdf",
+              "size": 49282
+            },
+            {
+              "filename": "한국학중앙연구원 분석결과 포스터.pdf",
+              "mimetype": "application/pdf",
+              "size": 542107
+            }
+          ],
+          "지표 선택": "4. 데이터기반행정 활용도 제고",
+          "submittedAt": "2026-03-20T17:04:05.004+09:00",
+          "formMode": "test"
+        },
+        "binary": {
+          "_____________0": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 데이터기반행정 카드 뉴스.pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/a33e14cc-fd0f-4ef0-87c6-2c0163f05f57",
+            "fileSize": "1.06 MB",
+            "bytes": 1058633
+          },
+          "_____________1": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 데이터기반행정 카드뉴스 제작 계획(안).pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/8ca08f5a-d19b-4f57-a25c-c7f78f61b9a3",
+            "fileSize": "112 kB",
+            "bytes": 112257
+          },
+          "_____________2": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 분석결과 포스터 제작 계획(안).pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/257e4087-4b2e-4254-8522-1abd6fb06e68",
+            "fileSize": "49.3 kB",
+            "bytes": 49282
+          },
+          "_____________3": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "한국학중앙연구원 분석결과 포스터.pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/31700e6d-befa-461b-96af-6ed15d6e231e",
+            "fileSize": "542 kB",
+            "bytes": 542107
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "versionId": "52546888-75c4-4a7a-9ab0-d7156be33469",
+  "activeVersionId": "f6a2be4b-9f8c-40db-b9b5-b284eaa499a0",
+  "versionCounter": 412,
   "triggerCount": 1,
   "shared": [
     {
@@ -623,9 +718,9 @@
     }
   ],
   "activeVersion": {
-    "updatedAt": "2026-03-20T07:50:38.556Z",
-    "createdAt": "2026-03-20T07:50:38.556Z",
-    "versionId": "0a1530d0-312e-43be-b895-07da274e2884",
+    "updatedAt": "2026-03-20T08:11:30.360Z",
+    "createdAt": "2026-03-20T08:11:30.360Z",
+    "versionId": "f6a2be4b-9f8c-40db-b9b5-b284eaa499a0",
     "workflowId": "7ljk74wFhpvgz3jy",
     "nodes": [
       {
@@ -822,7 +917,7 @@
       },
       {
         "parameters": {
-          "jsCode": "// AI 출력 정제화 + 첨부7 양식 HTML 변환\nconst outputRaw = $input.first().json.output;\n\n// 1) 마크다운 코드펜스 제거\nfunction stripCodeFence(str) {\n  if (typeof str !== 'string') return str;\n  const m = str.match(/```(?:json)?[\\s\\S]*?({[\\s\\S]*})/); // JSON 객체 직접 추출\n  if (m) return m[1].trim();\n  return str.trim();\n}\n\n// 2) Gemini가 다른 필드명으로 돌려줄 때 정규화\nfunction normalizeData(raw) {\n  if (!raw) return { achievements: [], summary: '' };\n\n  // 이미 achievements 형식이면 그대로\n  if (Array.isArray(raw.achievements) && raw.achievements.length > 0) return raw;\n\n  // report[] 또는 기타 배열 필드 사용 시 매핑\n  const src = raw.report || raw.results || raw['실적'] || [];\n  const achievements = src.map(function(item, i) {\n    // 배경+목적을 하나로 합치\n    var bg = item.background || item.backgroundAndPurpose || item['추진배경'] || item['추진배경및목적'] || '';\n    if (item.purpose && !bg.includes(item.purpose)) bg = (bg + '\\n\\n■ 목적: ' + item.purpose).trim();\n    return {\n      achievementNumber: item.achievementNumber || item.number || (i + 1),\n      type: item.type || item['유형'] || '기타',\n      title: item.title || item['제목'] || item.name || '',\n      relatedFiles: item.relatedFiles || item.files || [],\n      background: bg,\n      target: item.target || item['추진대상'] || '',\n      content: item.content || item['추진내용'] || '',\n      // result, achievementAndExpectedEffect, outcome 등 다양한 필드명 대응\n      outcome: item.outcome || item.result || item.achievementAndExpectedEffect\n             || item.achievementResult || item['추진성과'] || item['기대효과'] || ''\n    };\n  });\n\n  return {\n    achievements: achievements,\n    summary: raw.summary || ('접수된 파일을 분석하여 선별한 대표 실적 ' + achievements.length + '건입니다.')\n  };\n}\n\nvar data;\ntry {\n  var cleaned = stripCodeFence(outputRaw);\n  data = normalizeData(JSON.parse(cleaned));\n} catch(e) {\n  data = { achievements: [], summary: '⚠️ 출력 파싱 실패. n8n 실행 로그를 확인해주세요. (' + String(e.message) + ')' };\n}\n\nvar achievements = data.achievements || [];\n\nvar html = '<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"UTF-8\"><title>첨부7 정성보고서 초안</title>';\nhtml += '<style>';\nhtml += '@media print { .no-print { display: none !important; } body { margin: 0; } .achievement { page-break-inside: avoid; } }';\nhtml += 'body{font-family:\"Malgun Gothic\",sans-serif;max-width:960px;margin:20px auto;padding:24px;line-height:1.7;color:#222}';\nhtml += 'h1{color:#1a3a5c;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:6px}';\nhtml += '.meta{color:#666;font-size:14px;margin-bottom:8px}';\nhtml += '.print-btn{display:inline-block;background:#2980b9;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;border:none;font-size:14px;margin-bottom:20px;font-family:inherit}';\nhtml += '.achievement{background:#f8f9fa;border-left:5px solid #2980b9;margin:28px 0;padding:20px 24px;border-radius:4px}';\nhtml += '.ach-header{margin:0 0 10px 0}';\nhtml += '.ach-num{color:#1a3a5c;font-size:17px;font-weight:bold}';\nhtml += '.badge{background:#2980b9;color:#fff;padding:3px 12px;border-radius:12px;font-size:12px;margin-left:10px;vertical-align:middle}';\nhtml += '.files{color:#888;font-size:13px;margin:6px 0 14px 0}';\nhtml += '.row{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e9ecef}';\nhtml += '.row:last-child{border-bottom:none}';\nhtml += '.lbl{font-weight:bold;color:#555;font-size:14px;padding-top:2px}';\nhtml += '.val{color:#222;font-size:14px;white-space:pre-wrap}';\nhtml += '.summary{background:#e8f4fd;border:1px solid #bee3f8;padding:14px 18px;border-radius:4px;margin-bottom:24px;font-size:14px}';\nhtml += '.footer{color:#aaa;font-size:12px;margin-top:32px;padding-top:12px;border-top:1px solid #eee}';\nhtml += '</style></head><body>';\n\nhtml += '<h1>첨부7 정성보고서 초안</h1>';\nhtml += '<div class=\"meta\">선별 실적 ' + achievements.length + '건 | AI 자동 생성 초안 — 반드시 검토 후 사용</div>';\nhtml += '<button class=\"print-btn no-print\" onclick=\"window.print()\">🖨️ PDF로 저장 (인쇄)</button>';\n\nif (data.summary) {\n  html += '<div class=\"summary\">📌 ' + data.summary + '</div>';\n}\n\nachievements.forEach(function(ach, idx) {\n  var files = (ach.relatedFiles || []).join(' · ');\n  html += '<div class=\"achievement\">';\n  html += '<div class=\"ach-header\">';\n  html += '<span class=\"ach-num\">실적 ' + (idx + 1) + '. ' + (ach.title || '') + '</span>';\n  if (ach.type) html += '<span class=\"badge\">' + ach.type + '</span>';\n  html += '</div>';\n  if (files) html += '<div class=\"files\">📎 ' + files + '</div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진배경 및 목적</div><div class=\"val\">' + (ach.background || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진대상</div><div class=\"val\">' + (ach.target || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진내용</div><div class=\"val\">' + (ach.content || '') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진성과(기대효과)</div><div class=\"val\">' + (ach.outcome || '') + '</div></div>';\n  html += '</div>';\n});\n\nhtml += '<div class=\"footer\">본 초안은 AI가 생성한 것입니다. 담당자가 반드시 검토·수정 후 활용하시기 바랍니다.</div>';\nhtml += '</body></html>';\n\nreturn [{ json: { html: html, achievementCount: achievements.length, summary: data.summary || '' } }];"
+          "jsCode": "const outputRaw = $input.first().json.output;\n\n// 1) 코드펜스 + 앞뒤 공백 제거\nfunction stripCodeFence(str) {\n  if (typeof str !== 'string') return str;\n  return str\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/\\s*```\\s*$/i, '')\n    .trim();\n}\n\n// 2) 항목 정규화 (영문 키 / 한국어 키 / 혼합 모두 처리)\nfunction normalizeItem(item, i) {\n  var bg = item.background\n    || item.backgroundAndPurpose\n    || item['추진배경 및 목적']\n    || item['추진배경및목적']\n    || item['추진배경']\n    || '';\n  if (item.purpose && !bg.includes(item.purpose))\n    bg = (bg + '\\n\\n■ 목적: ' + item.purpose).trim();\n\n  return {\n    achievementNumber: item.achievementNumber || item.number || (i + 1),\n    type: item.type || item['유형'] || '기타',\n    title: item.title || item['실적명'] || item['제목'] || item.name || '',\n    relatedFiles: item.relatedFiles || item.files || [],\n    background: bg,\n    target: item.target || item['추진대상'] || '',\n    content: item.content || item['추진내용'] || '',\n    outcome: item.outcome || item.result\n      || item['추진성과(기대효과)']\n      || item['추진성과']\n      || item['기대효과']\n      || item.achievementAndExpectedEffect\n      || ''\n  };\n}\n\n// 3) 전체 구조 정규화 (배열 직접 / achievements 객체 / 기타 필드)\nfunction normalizeData(raw) {\n  if (!raw) return { achievements: [], summary: '' };\n\n  // 배열이 직접 온 경우\n  if (Array.isArray(raw)) {\n    return {\n      achievements: raw.map(normalizeItem),\n      summary: '접수된 파일을 분석하여 작성한 실적 ' + raw.length + '건입니다.'\n    };\n  }\n\n  // achievements 키가 있는 경우\n  if (Array.isArray(raw.achievements) && raw.achievements.length > 0) {\n    return {\n      achievements: raw.achievements.map(normalizeItem),\n      summary: raw.summary || ''\n    };\n  }\n\n  // 기타 배열 필드 시도\n  var src = raw.report || raw.results || raw['실적'] || [];\n  return {\n    achievements: src.map(normalizeItem),\n    summary: raw.summary || ('접수된 파일을 분석하여 작성한 실적 ' + src.length + '건입니다.')\n  };\n}\n\nvar data;\ntry {\n  var cleaned = stripCodeFence(outputRaw);\n  data = normalizeData(JSON.parse(cleaned));\n} catch(e) {\n  data = { achievements: [], summary: '⚠️ 출력 파싱 실패. n8n 실행 로그를 확인해주세요. (' + String(e.message) + ')' };\n}\n\nvar achievements = data.achievements || [];\n\nvar html = '<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"UTF-8\"><title>첨부7 정성보고서 초안</title><style>@media print { .no-print { display: none !important; } body { margin: 0; } .achievement { page-break-inside: avoid; } }body{font-family:\"Malgun Gothic\",sans-serif;max-width:960px;margin:20px auto;padding:24px;line-height:1.7;color:#222}h1{color:#1a3a5c;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:6px}.meta{color:#666;font-size:14px;margin-bottom:8px}.print-btn{display:inline-block;background:#2980b9;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;border:none;font-size:14px;margin-bottom:20px;font-family:inherit}.achievement{background:#f8f9fa;border-left:5px solid #2980b9;margin:28px 0;padding:20px 24px;border-radius:4px}.ach-header{margin:0 0 10px 0}.ach-num{color:#1a3a5c;font-size:17px;font-weight:bold}.badge{background:#2980b9;color:#fff;padding:3px 12px;border-radius:12px;font-size:12px;margin-left:10px;vertical-align:middle}.files{color:#888;font-size:13px;margin:6px 0 14px 0}.row{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e9ecef}.row:last-child{border-bottom:none}.lbl{font-weight:bold;color:#555;font-size:14px;padding-top:2px}.val{color:#222;font-size:14px;white-space:pre-wrap}.summary{background:#e8f4fd;border:1px solid #bee3f8;padding:14px 18px;border-radius:4px;margin-bottom:24px;font-size:14px}.footer{color:#aaa;font-size:12px;margin-top:32px;padding-top:12px;border-top:1px solid #eee}</style></head><body>';\n\nhtml += '<h1>첨부7 정성보고서 초안</h1>';\nhtml += '<div class=\"meta\">실적 ' + achievements.length + '건 | AI 자동 생성 초안 — 반드시 검토 후 사용</div>';\nhtml += '<button class=\"print-btn no-print\" onclick=\"window.print()\">🖨️ PDF로 저장 (인쇄)</button>';\n\nif (data.summary) {\n  var summaryIcon = data.summary.startsWith('⚠️') ? '📌 ' : '📌 ';\n  html += '<div class=\"summary\">' + summaryIcon + data.summary + '</div>';\n}\n\nif (achievements.length === 0) {\n  html += '<p style=\"color:#e74c3c\">⚠️ 실적이 없습니다. AI 출력을 확인하세요.</p>';\n} else {\n  achievements.forEach(function(ach) {\n    html += '<div class=\"achievement\">';\n    html += '<div class=\"ach-header\">';\n    html += '<span class=\"ach-num\">실적' + (ach.achievementNumber || '') + ' ' + (ach.title || '') + '</span>';\n    if (ach.type) html += '<span class=\"badge\">' + ach.type + '</span>';\n    html += '</div>';\n    if (ach.relatedFiles && ach.relatedFiles.length > 0) {\n      html += '<div class=\"files\">📎 ' + ach.relatedFiles.join(', ') + '</div>';\n    }\n    html += '<div class=\"row\"><div class=\"lbl\">추진배경 및 목적</div><div class=\"val\">' + (ach.background || '') + '</div></div>';\n    html += '<div class=\"row\"><div class=\"lbl\">추진대상</div><div class=\"val\">' + (ach.target || '') + '</div></div>';\n    html += '<div class=\"row\"><div class=\"lbl\">추진내용</div><div class=\"val\">' + (ach.content || '') + '</div></div>';\n    html += '<div class=\"row\"><div class=\"lbl\">추진성과(기대효과)</div><div class=\"val\">' + (ach.outcome || '') + '</div></div>';\n    html += '</div>';\n  });\n}\n\nhtml += '<div class=\"footer\">본 초안은 AI가 생성한 것입니다. 담당자가 반드시 검토·수정 후 활용하시기 바랍니다.</div>';\nhtml += '</body></html>';\n\nreturn [{\n  binary: $input.first().binary,\n  json: {\n    ...($input.first().json),\n    html,\n    achievementCount: achievements.length,\n    summary: data.summary\n  }\n}];"
         },
         "id": "node-html",
         "name": "HTML 생성",
@@ -1042,9 +1137,9 @@
       {
         "parameters": {
           "promptType": "define",
-          "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개 (본체 {{ $json.mainFileCount }}개 / 보조자료 {{ $json.supportFileCount }}개)\n\n【⚠️ 실적 수 확인】\n본체 파일이 {{ $json.mainFileCount }}개이므로, 실적은 반드시 {{ $json.mainFileCount }}건입니다.\n각 본체 파일 1개 = 실적 1건. 추가하거나 줄이지 마세요.\n보조자료만 있고 본체가 없으면 보조자료 1개 = 실적 1건.\n\n【업로드된 파일 내용】\n{{ $json.fileListText }}\n\n위 파일들을 분석하여 첨부7 정성보고서 초안을 작성해주세요.\n- 본체 파일 수({{ $json.mainFileCount }}건)와 동일한 수의 실적을 작성하세요.\n- 파일 안의 내용이 아닌, '파일로 대표되는 제작·배포 활동' 자체가 실적입니다.\n- 계획서(보조자료)는 실적으로 계산하지 말고, 동일 실적의 배경·내용 파악에만 활용하세요.",
+          "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개 (본체 {{ $json.mainFileCount }}개 / 보조자료 {{ $json.supportFileCount }}개)\n\n【실적 수 확인】\n본체 파일이 {{ $json.mainFileCount }}개이므로, 실적을 반드시 {{ $json.mainFileCount }}건 작성하세요.\n보조자료만 있고 본체가 없으면 보조자료 수만큼 작성하세요.\n선별하거나 줄이지 마세요. 올라온 파일 전부 작성합니다.\n\n【업로드된 파일 내용】\n{{ $json.fileListText }}\n\n위 파일들을 분석하여 첨부7 정성보고서 초안을 작성해주세요.\n- 본체 파일 1개 = 실적 1건. 빠짐없이 전부 작성하세요.\n- 파일 안의 내용이 아닌, 파일로 대표되는 제작·배포 활동이 실적입니다.\n- 계획서(보조자료)는 실적으로 세지 말고, 같은 실적의 배경·내용 파악에만 활용하세요.",
           "options": {
-            "systemMessage": "당신은 데이터기반행정 활성화 평가 정성보고서(첨부7) 작성 전문가입니다.\n\n【⚠️ 절대 규칙 — 실적이란 무엇인가】\n1. 실적(추진실적) = 업로드된 파일이 나타내는 제작물·활동 자체입니다.\n   - 카드뉴스 PDF → 실적: \"카드뉴스 제작·배포\"\n   - 포스터 PDF → 실적: \"분석결과 포스터 제작·배포\"\n   - 교육자료 PDF → 실적: \"○○ 교육 실시\"\n   - 행사 결과물 PDF → 실적: \"○○ 행사 개최\"\n2. 파일 안의 내용(카드뉴스에 담긴 설명, 포스터에 표시된 수치)은 실적이 아닙니다.\n3. 없는 실적을 절대 만들지 마세요. 본체(main) 파일 수 = 실적 수입니다.\n4. 한 파일 = 한 실적. 한 파일에서 여러 실적을 파생시키지 마세요.\n5. 계획서·계획(안)은 동일 실적의 추진배경·내용 파악에만 활용하세요. 별도 실적이 아닙니다.\n\n【지표 설명】\n지표 3-3-3. 활성화 제고를 위한 다양한 노력\n∎ 기관에서 데이터기반행정을 활성화하기 위해 추진한 다양한 시책 노력을 8점 만점 기준으로 정성 평가\n\n【실적 유형 분류표】\n유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  예시: 역량진단 결과를 활용한 인력 재배치·역할 분담 강화, 개선계획 수립 및 실적점검\n\n유형 2. 기반조성\n  예시: 법·규정 정비·절차·제도 개선, 전담부서 인력 충원·예산확보, 성과지표에 분석결과 활용 지표 신설\n\n유형 3. 문화조성 및 성과확산\n  예시: 공모전·경진대회·설명회 등 행사, 카드뉴스·포스터 제작·배포, 우수사례 공유회·사례집 발간, 보도자료 배포\n\n유형 4. AI·데이터 전문인력 양성\n  예시: 기관 자체 교육과정 개발·운영, 전문인력 채용, 자격증 취득 지원\n\n유형 5. 기타\n  예시: 기관·데이터 특성을 고려한 기타 노력\n\n【파일 그룹화 규칙】\n- 【본체 파일】: 실적 자체인 파일 (카드뉴스, 포스터, 교육 결과물, 행사 결과물 등)\n  → 본체 파일 1개 = 실적 1건\n- 【보조 자료 파일】: 계획서·계획(안)·결과요약서 등 실적을 설명하는 문서\n  → 실적 수에 포함하지 않음. 동일 주제 본체 파일의 추진배경·내용 파악에만 활용\n- 보조 자료만 있고 본체가 없으면: 보조 자료 1개 = 실적 1건으로 처리\n\n【각 항목 작성 기준 — 반드시 이 기준으로만 작성】\n\n▶ 실적명\n- 파일명에서 기관명을 제거한 핵심 제작물명·활동명\n- 예) 파일명 \"○○기관 데이터기반행정 카드뉴스.pdf\" → 실적명 \"데이터기반행정 카드뉴스\"\n- 예) 파일명 \"분석결과 포스터.pdf\" → 실적명 \"분석결과 포스터 제작·배포\"\n\n▶ 추진배경 및 목적\n- 이 제작물·활동을 기획하게 된 배경(문제 인식, 필요성)과 달성하려는 목적\n- 계획서(보조자료)에 배경·목적 내용이 있으면 그 내용을 그대로 활용\n- 계획서 없으면 제작물의 성격(홍보, 교육, 인식 제고 등)과 지표 맥락에서 자연스럽게 추론\n- ❌ 파일 안의 데이터·수치·세부 내용을 나열하지 말 것\n\n▶ 추진대상\n- 이 활동의 수혜자·배포 대상·교육 참가자\n- 파일에 명시된 경우 그대로 기재, 없으면 맥락에서 추론 (내부 직원 대상, 관련 기관 등)\n\n▶ 추진내용\n- 무엇을(제작물명·활동명 포함) + 어떻게 했는지(제작 방식·배포 방식·실시 방법)\n- 예) \"데이터기반행정 소개, 사례, 추진 전략 등의 내용을 담은 카드뉴스를 제작하여 전부서에 배포\"\n- 예) \"2025년 공공데이터 활용도 분석 결과를 인포그래픽 형식의 포스터로 제작하여 전부서에 배포\"\n- 계획서에 구체적인 제작 대상·추진 방식이 있으면 반드시 활용\n- ❌ 파일 내부의 세부 데이터·항목 목록을 나열하지 말 것\n\n▶ 추진성과(기대효과)\n- 이 제작·배포·실시 활동이 가져온 또는 기대되는 효과\n- 예) 내부 구성원의 인지도 제고와 자발적 참여 유도, 데이터기반행정 문화 정착 도모\n- 예) 기관의 데이터 분석 성과를 홍보하여 내부 구성원의 이해도와 참여 의지를 높이고 데이터 기반 의사결정 문화 정착\n- ❌ 파일 내 데이터·수치 나열 금지\n\n반드시 지정된 JSON 스키마로만 응답하세요."
+            "systemMessage": "당신은 데이터기반행정 활성화 평가 정성보고서(첨부7) 작성 전문가입니다.\n\n【⚠️ 절대 규칙 — 실적이란 무엇인가】\n1. 실적(추진실적) = 업로드된 파일이 나타내는 제작물·활동 자체입니다.\n   - 카드뉴스 PDF/이미지 → 실적: \"카드뉴스 제작·배포\"\n   - 포스터 PDF → 실적: \"분석결과 포스터 제작·배포\"\n   - 교육자료 PDF → 실적: \"○○ 교육 실시\"\n2. 파일 안의 내용(카드뉴스에 담긴 설명, 포스터에 표시된 수치)은 실적이 아닙니다.\n3. 선별하지 마세요. 본체 파일 수 = 실적 수. 올라온 것은 전부 작성합니다.\n4. 한 파일 = 한 실적. 한 파일에서 여러 실적을 파생시키지 마세요.\n5. 계획서·계획(안)은 배경·내용 파악에만 활용. 별도 실적이 아닙니다.\n\n【지표 설명】\n지표 3-3-3. 활성화 제고를 위한 다양한 노력\n∎ 기관에서 데이터기반행정을 활성화하기 위해 추진한 다양한 시책 노력을 8점 만점 기준으로 정성 평가\n\n【실적 유형 분류표】\n유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  예시: 역량진단 결과를 활용한 인력 재배치, 개선계획 수립 및 실적점검\n\n유형 2. 기반조성\n  예시: 법·규정 정비·절차·제도 개선, 전담부서 인력 충원·예산확보, 성과지표에 분석결과 활용 지표 신설\n\n유형 3. 문화조성 및 성과확산\n  예시: 공모전·경진대회·설명회 등 행사, 카드뉴스·포스터 제작·배포, 우수사례 공유회, 보도자료 배포\n\n유형 4. AI·데이터 전문인력 양성\n  예시: 자체 교육과정 개발·운영, 전문인력 채용, 자격증 취득 지원\n\n유형 5. 기타\n  예시: 기관·데이터 특성을 고려한 기타 노력\n\n【파일 그룹화 규칙】\n- 【본체 파일】: 실적 자체인 파일 (카드뉴스, 포스터, 교육 결과물, 행사 결과물 등)\n  → 본체 파일 1개 = 실적 1건\n- 【보조 자료 파일】: 계획서·계획(안)·결과요약서 등 실적을 설명하는 문서\n  → 실적 수에 포함하지 않음. 동일 주제 본체 파일의 배경·내용 파악에만 활용\n- 보조 자료만 있고 본체가 없으면: 보조 자료 1개 = 실적 1건으로 처리\n\n【각 항목 작성 기준 — 반드시 이 기준으로만 작성】\n\n▶ 실적명\n- 파일명에서 기관명을 제거한 핵심 제작물명·활동명\n- 예) \"데이터기반행정 카드뉴스\", \"분석결과 포스터\"\n\n▶ 추진배경 및 목적\n- 이 제작물·활동을 기획하게 된 배경(문제 인식, 필요성)과 달성하려는 목적\n- 계획서(보조자료)에 배경·목적 내용이 있으면 그대로 활용\n- 계획서 없으면 제작물 성격(홍보, 교육, 인식 제고 등)과 지표 맥락에서 추론\n- ❌ 파일 안의 데이터·수치·세부 내용을 나열하지 말 것\n\n▶ 추진대상\n- 이 활동의 수혜자·배포 대상·교육 대상\n- 파일에 명시된 경우 그대로 기재, 없으면 맥락에서 추론(내부 직원, 관련 기관 등)\n\n▶ 추진내용\n- 무엇을(제작물명·활동명 포함) + 어떻게 했는지(제작 방식·배포 방식·실시 방법)\n- 예) \"데이터기반행정 소개, 사례, 추진 전략 등의 내용을 담은 카드뉴스를 제작하여 전부서에 배포\"\n- 예) \"2025년 공공데이터 활용도 분석 결과를 인포그래픽 형식의 포스터로 제작하여 전부서에 배포\"\n- 계획서에 구체적인 제작 대상·추진 방식이 있으면 반드시 활용\n- ❌ 파일 내부의 세부 데이터·항목 목록을 나열하지 말 것\n\n▶ 추진성과(기대효과)\n- 이 제작·배포·실시 활동이 가져온 또는 기대되는 효과\n- 예) 내부 구성원의 인지도 제고와 자발적 참여 유도, 데이터기반행정 문화 정착 도모\n- 예) 기관 데이터 분석 성과를 홍보하여 내부 구성원의 이해도와 참여 의지를 높이고 데이터 기반 의사결정 문화 정착\n- ❌ 파일 내 데이터·수치 나열 금지\n\n반드시 지정된 JSON 스키마로만 응답하세요."
           }
         },
         "id": "node-agent",
@@ -1058,7 +1153,7 @@
       },
       {
         "parameters": {
-          "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"description\":\"분류된 실적 목록 (최대 5건, 대표성 높은 순)\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\",\"description\":\"실적 번호 (1부터 시작)\"},\"type\":{\"type\":\"string\",\"description\":\"실적 유형 (역량진단 결과 활용/기반조성/문화조성 및 성과확산/AI·데이터 전문인력 양성/기타)\"},\"title\":{\"type\":\"string\",\"description\":\"실적 제목 (간결하게)\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"이 실적에 해당하는 파일명 목록 (본체+보조자료 포함)\"},\"background\":{\"type\":\"string\",\"description\":\"추진배경 및 목적\"},\"target\":{\"type\":\"string\",\"description\":\"추진대상\"},\"content\":{\"type\":\"string\",\"description\":\"추진내용\"},\"outcome\":{\"type\":\"string\",\"description\":\"추진성과(기대효과)\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\",\"description\":\"전체 실적 요약 (1~2문장)\"}},\"required\":[\"achievements\",\"summary\"]}"
+          "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"description\":\"작성된 실적 목록. 본체 파일 수와 동일한 수로 작성. 선별하지 말고 전부 작성.\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\",\"description\":\"실적 번호 (1부터 시작)\"},\"type\":{\"type\":\"string\",\"description\":\"실적 유형 (역량진단 결과 활용/기반조성/문화조성 및 성과확산/AI·데이터 전문인력 양성/기타)\"},\"title\":{\"type\":\"string\",\"description\":\"실적 제목 (파일명 기반 핵심 제작물명·활동명)\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"},\"description\":\"이 실적에 해당하는 파일명 목록 (본체+보조자료 포함)\"},\"background\":{\"type\":\"string\",\"description\":\"추진배경 및 목적\"},\"target\":{\"type\":\"string\",\"description\":\"추진대상\"},\"content\":{\"type\":\"string\",\"description\":\"추진내용\"},\"outcome\":{\"type\":\"string\",\"description\":\"추진성과(기대효과)\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\",\"description\":\"전체 실적 요약 (1~2문장)\"}},\"required\":[\"achievements\",\"summary\"]}"
         },
         "type": "@n8n/n8n-nodes-langchain.toolCode",
         "typeVersion": 1.3,
@@ -1224,18 +1319,18 @@
     "autosaved": false,
     "workflowPublishHistory": [
       {
-        "createdAt": "2026-03-20T07:50:38.627Z",
-        "id": 63,
+        "createdAt": "2026-03-20T08:11:30.425Z",
+        "id": 67,
         "workflowId": "7ljk74wFhpvgz3jy",
-        "versionId": "0a1530d0-312e-43be-b895-07da274e2884",
+        "versionId": "f6a2be4b-9f8c-40db-b9b5-b284eaa499a0",
         "event": "activated",
         "userId": "4abf0400-2871-4f8d-802c-e275d8b8f939"
       },
       {
-        "createdAt": "2026-03-20T07:50:38.603Z",
-        "id": 62,
+        "createdAt": "2026-03-20T08:11:30.405Z",
+        "id": 66,
         "workflowId": "7ljk74wFhpvgz3jy",
-        "versionId": "0a1530d0-312e-43be-b895-07da274e2884",
+        "versionId": "f6a2be4b-9f8c-40db-b9b5-b284eaa499a0",
         "event": "deactivated",
         "userId": "4abf0400-2871-4f8d-802c-e275d8b8f939"
       }
