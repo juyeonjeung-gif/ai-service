@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-03-30T01:13:43.692Z",
+  "updatedAt": "2026-04-10T05:09:50.179Z",
   "createdAt": "2026-03-16T04:28:06.570Z",
   "id": "7ljk74wFhpvgz3jy",
   "name": "(정성보고서) 데이터기반행정 활성화 제고 노력",
@@ -920,6 +920,753 @@
       "typeVersion": 1,
       "id": "83eda217-1e89-4adc-8bb6-8b825d9198e6",
       "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "### 1. 사용자 입력\n* 설명 \n: 활성화 제고 노력 실적 업로드 및 사용자 평가지표 입력\n",
+        "height": 416,
+        "width": 454,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        288,
+        1264
+      ],
+      "id": "dd1309c6-79cb-4589-9b90-4f0e208c3546",
+      "name": "Sticky Note12",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first();\nconst agencyName = inputItem.json['기관명을 입력하세요'] || '';\nconst uploadedFiles = inputItem.json['증적자료를 업로드하세요'] || [];\nconst binary = inputItem.binary || {};\nconst binaryKeys = Object.keys(binary);\nif (uploadedFiles.length === 0) throw new Error('업로드된 파일이 없습니다.');\nconst items = [];\nfor (let i = 0; i < uploadedFiles.length; i++) {\n  const binaryKey = binaryKeys[i];\n  if (!binaryKey) continue;\n  items.push({ json: { fileIndex: i, filename: uploadedFiles[i].filename, agencyName, totalFiles: uploadedFiles.length }, binary: { data: binary[binaryKey] } });\n}\nif (items.length === 0) throw new Error('바이너리 데이터를 찾을 수 없습니다.');\nreturn items;"
+      },
+      "id": "b912de5a-dfd5-40fa-8886-27ef681b676d",
+      "name": "파일 정규화3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "5460fee1-1e97-455b-987f-ac36ac9fd4bd",
+      "name": "Gemini 파일 업로드3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        912,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nconst uploadResults = $input.all();\nconst originalItems = $('파일 정규화3').all();\nfor (let i = 0; i < uploadResults.length; i++) {\n  const uploadItem = uploadResults[i];\n  const originalItem = originalItems[i] || { json: {} };\n  const fileUri = uploadItem.json?.file?.uri;\n  const filename = originalItem.json.filename || `file_${i + 1}.pdf`;\n  const fileIndex = originalItem.json.fileIndex ?? i;\n  const agencyName = originalItem.json.agencyName ?? '';\n  if (!fileUri) throw new Error(`[${filename}] 파일 업로드 응답에 URI가 없습니다. 응답: ${JSON.stringify(uploadItem.json)}`);\n  const geminiRequestBody = {\n    contents: [{ parts: [\n      { file_data: { mime_type: 'application/pdf', file_uri: fileUri } },\n      { text: `파일명: \"${filename}\"\\n\\n이 PDF 파일의 전체 내용을 텍스트로 상세히 추출해주세요.\\n- 표가 있으면 표의 내용을 텍스트로 정리해주세요.\\n- 이미지·그래픽이 있으면 그 내용과 의미를 설명해주세요.\\n- 원문에 충실하게 추출하되, 레이아웃·페이지 구분 마크업은 생략해도 됩니다.\\n- 최대한 완전하게 추출해주세요.` }\n    ]}],\n    generationConfig: { maxOutputTokens: 8192 }\n  };\n  results.push({ json: { fileIndex, filename, agencyName, fileUri, geminiRequestBody } });\n}\nreturn results;"
+      },
+      "id": "982e74ee-43ff-45dc-97f2-6bd68f936b6b",
+      "name": "Gemini 요청 조립3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.geminiRequestBody }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "3ffea31b-d847-4980-bd53-7c3a7b27eb24",
+      "name": "Gemini 내용 생성3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1184,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const filename = item.json.filename ?? '파일명 없음';\n  const candidates = item.json.candidates;\n  let extractedText = '';\n  if (candidates?.[0]?.content?.parts?.[0]?.text) extractedText = candidates[0].content.parts[0].text;\n  \n  // 단순 분류 로직 제거, 모든 파일 정보를 LLM에 넘김\n  return { \n    json: { \n      fileIndex: item.json.fileIndex ?? 0, \n      filename, \n      agencyName: item.json.agencyName ?? '', \n      text: extractedText.trim().substring(0, 15000) \n    } \n  };\n});"
+      },
+      "id": "c65659a2-ab47-4f06-961b-3fab5d7a0c5f",
+      "name": "파일 텍스트 정리3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "files",
+        "options": {}
+      },
+      "id": "5b63c01e-0ada-46ea-9685-d03f2ad27ae2",
+      "name": "전체 취합3",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1424,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst files = inputData.files || [];\nconst agencyName = (files[0] || {}).agencyName || '';\n\n// 모든 파일을 하나로 묶어서 전달\nconst fileContext = files.map((f, i) => {\n  return `[파일 ${i+1}] 파일명: ${f.filename}\\n내용 요약: ${f.text.substring(0, 3000)}...`;\n}).join('\\n\\n---\\n\\n');\n\nreturn [{\n  json: {\n    agencyName,\n    fileCount: files.length,\n    fileContext: fileContext.substring(0, 60000)\n  }\n}];"
+      },
+      "id": "52602895-f0e6-40ed-874c-3a309202b484",
+      "name": "분류 준비3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "maxOutputTokens": 8000
+        }
+      },
+      "id": "1856d073-b4ca-4926-b7dc-e3cfa0999584",
+      "name": "Google Gemini (Agent용)3",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        1536
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "기관명: {{ $json.agencyName }}\n전체 파일 수: {{ $json.fileCount }}개\n\n【업로드된 파일 목록 및 내용】\n{{ $json.fileContext }}\n\n위 파일들을 분석하여 '데이터기반행정 활성화 제고 노력' 정성보고서(첨부7)를 작성해주세요.\n\n### ⚠️ 실적 판별 및 그룹화 규칙 (매우 중요)\n1. **논리적 그룹화**: 동일한 사업이나 활동에 관련된 파일(예: 제작 계획안 + 최종 결과물, 역량진단 계획 + 진단 결과 보고서)은 하나의 '실적'으로 묶어서 작성하세요.\n2. **실체 중심**: 단순히 계획만 있는 파일보다는 실제 수행된 '제작물', '활동', '운영 결과'를 중심으로 실적명을 정하세요.\n3. **중복 배제**: 파일이 여러 개라고 해서 무조건 개별 실적으로 낱개 처리하지 마세요. 내용이 중복되거나 시리즈물인 경우 하나로 통합합니다.\n4. **누락 방지**: 서로 다른 주제의 활동인 경우, 모든 주제가 실적에 포함되어야 합니다. (예: 카드뉴스와 포스터 주제가 다르면 각각 별개 실적)\n5. **증거 기반**: 반드시 업로드된 파일의 내용에 근거해야 하며, 없는 실적을 지어내지 마세요.\n\n### 【작성 항목 기준】\n▶ type(실적 유형): 아래 5가지 중 가장 적합한 것 선택\n  - 유형 1. 데이터 분석·활용 역량진단 결과의 활용\n  - 유형 2. 기반조성\n  - 유형 3. 문화조성 및 성과확산\n  - 유형 4. AI·데이터 전문인력 양성\n  - 유형 5. 기타\n▶ title(실적명): 기관명을 제외하고, 활동의 핵심을 보여주는 명칭 (예: 000 제작 및 배포, 000 교육 실시)\n▶ relatedFiles: 해당 실적을 증빙하는 데 사용된 파일명(들)\n▶ background: 추진 배경 및 목적 (파일 내용을 그대로 나열하지 말고 취지를 문장으로 서술)\n▶ target: 추진/수혜 대상\n▶ content: 실제 추진한 내용 (무엇을, 어떻게 수행했는지 상세히)\n▶ outcome: 활동을 통해 얻은 성과나 기대 효과\n\n### 【출력 형식】\n순수 JSON 형식으로만 응답하세요.\n{\n  \"achievements\": [\n    {\n      \"achievementNumber\": 1,\n      \"type\": \"...\",\n      \"title\": \"...\",\n      \"relatedFiles\": [\"파일1.pdf\", \"파일2.pdf\"],\n      \"background\": \"...\",\n      \"target\": \"...\",\n      \"content\": \"...\",\n      \"outcome\": \"...\"\n    }\n  ],\n  \"summary\": \"전체 활동을 요약하는 문구\"\n}",
+        "options": {
+          "systemMessage": "당신은 데이터기반행정 평가 정성보고서 작성 전문가입니다. 제공된 증빙 자료들을 분석하여, 중복된 내용은 그룹화하고 실제 성과 중심의 정성보고서를 작성합니다."
+        }
+      },
+      "id": "8bc299c6-ab5b-44e5-b0e9-1a00b3845f60",
+      "name": "실적 분류 & 초안 작성3",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1792,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\"},\"type\":{\"type\":\"string\"},\"title\":{\"type\":\"string\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"background\":{\"type\":\"string\"},\"target\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"},\"outcome\":{\"type\":\"string\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\"}},\"required\":[\"achievements\",\"summary\"]}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        1936,
+        1568
+      ],
+      "id": "47ffc664-3e1e-4ccb-a46f-ff4d08abb6ae",
+      "name": "초안 출력 파서3",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const outputRaw = $input.first().json.output;\n\nfunction extractJSON(str) {\n  if (typeof str !== 'string') return str;\n  let m = str.match(/```json\\s*([\\s\\S]*?)```/);\n  if (m) return m[1].trim();\n  m = str.match(/```\\s*([\\s\\S]*?)```/);\n  if (m) return m[1].trim();\n  const first = str.indexOf('{');\n  const last = str.lastIndexOf('}');\n  if (first !== -1 && last > first) return str.substring(first, last + 1).trim();\n  return str.trim();\n}\n\nfunction normalizeItem(item, i) {\n  const bg =\n    item.background ||\n    item.backgroundAndPurpose ||\n    item['추진배경 및 목적'] ||\n    item['추진배경및목적'] ||\n    item['추진배경'] || '';\n  return {\n    achievementNumber: item.achievementNumber || item.number || (i + 1),\n    type: item.type || item['유형'] || item['실적유형'] || '기타',\n    title: item.title || item['제목'] || item['실적명'] || item.name || '',\n    relatedFiles: item.relatedFiles || item.files || item['관련파일'] || [],\n    background: bg,\n    target: item.target || item['추진대상'] || '',\n    content: item.content || item['추진내용'] || '',\n    outcome:\n      item.outcome || item.result || item.achievementAndExpectedEffect ||\n      item.achievementResult || item['추진성과'] ||\n      item['추진성과(기대효과)'] || item['기대효과'] || ''\n  };\n}\n\nfunction normalizeData(raw) {\n  if (!raw) return { achievements: [], summary: '' };\n  if (Array.isArray(raw.achievements) && raw.achievements.length > 0) {\n    return { achievements: raw.achievements.map(normalizeItem), summary: raw.summary || '' };\n  }\n  const src =\n    raw.report || raw.results || raw['실적'] ||\n    raw['정성보고서'] || raw['추진실적'] || raw['실적목록'] || [];\n  if (Array.isArray(src) && src.length > 0) {\n    return {\n      achievements: src.map(normalizeItem),\n      summary: raw.summary || raw['요약'] || ('총 ' + src.length + '건의 실적을 작성하였습니다.')\n    };\n  }\n  return { achievements: [], summary: raw.summary || raw['요약'] || '' };\n}\n\nvar data;\ntry {\n  data = normalizeData(JSON.parse(extractJSON(outputRaw)));\n} catch(e) {\n  data = { achievements: [], summary: '⚠️ 출력 파싱 실패. (' + String(e.message) + ')\\n\\n[원본 출력 앞 500자]\\n' + String(outputRaw || '').substring(0, 500) };\n}\n\nvar achievements = data.achievements || [];\nvar html = '<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"UTF-8\"><title>첨부7 정성보고서 초안</title>';\nhtml += '<style>@media print{.no-print{display:none!important}body{margin:0}.achievement{page-break-inside:avoid}}body{font-family:\"Malgun Gothic\",sans-serif;max-width:960px;margin:20px auto;padding:24px;line-height:1.7;color:#222}h1{color:#1a3a5c;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:6px}.meta{color:#666;font-size:14px;margin-bottom:8px}.print-btn{display:inline-block;background:#2980b9;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;border:none;font-size:14px;margin-bottom:20px;font-family:inherit}.achievement{background:#f8f9fa;border-left:5px solid #2980b9;margin:28px 0;padding:20px 24px;border-radius:4px}.ach-header{margin:0 0 10px 0}.ach-num{color:#1a3a5c;font-size:17px;font-weight:bold}.badge{background:#2980b9;color:#fff;padding:3px 12px;border-radius:12px;font-size:12px;margin-left:10px;vertical-align:middle}.files{color:#888;font-size:13px;margin:6px 0 14px 0}.row{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e9ecef}.row:last-child{border-bottom:none}.lbl{font-weight:bold;color:#555;font-size:14px;padding-top:2px}.val{color:#222;font-size:14px;white-space:pre-wrap}.summary{background:#e8f4fd;border:1px solid #bee3f8;padding:14px 18px;border-radius:4px;margin-bottom:24px;font-size:14px}.footer{color:#aaa;font-size:12px;margin-top:32px;padding-top:12px;border-top:1px solid #eee}</style></head><body>';\nhtml += '<h1>첨부7 정성보고서 초안</h1>';\nhtml += '<div class=\"meta\">실적 ' + achievements.length + '건 | AI 자동 생성 초안 — 반드시 검토 후 사용</div>';\nhtml += '<button class=\"print-btn no-print\" onclick=\"window.print()\">🖨️ PDF로 저장 (인쇄)</button>';\nif (data.summary) html += '<div class=\"summary\">📌 ' + data.summary + '</div>';\nachievements.forEach(function(ach, idx) {\n  var files = (ach.relatedFiles || []).join(' · ');\n  html += '<div class=\"achievement\"><div class=\"ach-header\">';\n  html += '<span class=\"ach-num\">실적 ' + (idx+1) + '. ' + (ach.title||'') + '</span>';\n  if (ach.type) html += '<span class=\"badge\">' + ach.type + '</span>';\n  html += '</div>';\n  if (files) html += '<div class=\"files\">📎 ' + files + '</div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진배경 및 목적</div><div class=\"val\">' + (ach.background||'') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진대상</div><div class=\"val\">' + (ach.target||'') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진내용</div><div class=\"val\">' + (ach.content||'') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진성과(기대효과)</div><div class=\"val\">' + (ach.outcome||'') + '</div></div>';\n  html += '</div>';\n});\nhtml += '<div class=\"footer\">본 초안은 AI가 생성한 것입니다. 담당자가 반드시 검토·수정 후 활용하시기 바랍니다.</div></body></html>';\nreturn [{ json: { html, achievementCount: achievements.length, summary: data.summary || '' } }];"
+      },
+      "id": "5439eaf4-5a3f-4d6f-a506-44ba3fca1dc0",
+      "name": "HTML 생성3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst html = item.json.html;\nif (!html) throw new Error('html 키 없음. 사용 가능한 키: ' + Object.keys(item.json||{}).join(', '));\nconst 파일명 = item.json.파일명 || 'report';\nconst safeFileName = 파일명.replace(/[^a-zA-Z0-9가-힙_-]/g, '_');\nreturn [{ binary: { data: { data: Buffer.from(html,'utf-8').toString('base64'), mimeType:'text/html', fileName:`${safeFileName}_분석결과.html` } }, json: item.json }];"
+      },
+      "id": "208ccd99-f7c6-4f09-9a5b-e040baaa587a",
+      "name": "HTML 저장3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        1392
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json['지표 선택'] }}",
+                    "rightValue": "3.3.3. 활성화 제고를 위한 다양한 노력",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "584bd109-de5c-4a19-9f40-a921c2e1de92"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "지표_3_3_3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7c06b1c2-50ad-407c-af91-7792508884e1",
+      "name": "지표별 분류3",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        576,
+        1360
+      ]
+    },
+    {
+      "parameters": {
+        "formTitle": "PDF 업로드 (정성보고서 생성)",
+        "formDescription": "실적 증빙자료를 업로드하면 첨부7 정성보고서 초안을 만들어줍니다.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "기관명을 입력하세요",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "증적자료를 업로드하세요",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "지표 선택",
+              "fieldType": "dropdown",
+              "defaultValue": "3.3.3. 활성화 제고를 위한 다양한 노력",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "3.3.3. 활성화 제고를 위한 다양한 노력"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "37e4868a-a787-4680-8390-4e7af23f1080",
+      "name": "자료 업로드3",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        368,
+        1408
+      ],
+      "webhookId": "ce5a7917-8663-4ea8-9163-227513538e66"
+    },
+    {
+      "parameters": {
+        "content": "### 1. 사용자 입력\n* 설명 \n: 활성화 제고 노력 실적 업로드 및 사용자 평가지표 입력\n",
+        "height": 416,
+        "width": 454,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        272,
+        1808
+      ],
+      "id": "5ab83239-e96e-4014-8914-e2e97fc25d27",
+      "name": "Sticky Note13"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first();\nconst agencyName = inputItem.json['기관명을 입력하세요'] || '';\nconst uploadedFiles = inputItem.json['증적자료를 업로드하세요'] || [];\nconst binary = inputItem.binary || {};\nconst binaryKeys = Object.keys(binary);\nif (uploadedFiles.length === 0) throw new Error('업로드된 파일이 없습니다.');\nconst items = [];\nfor (let i = 0; i < uploadedFiles.length; i++) {\n  const binaryKey = binaryKeys[i];\n  if (!binaryKey) continue;\n  items.push({ json: { fileIndex: i, filename: uploadedFiles[i].filename, agencyName, totalFiles: uploadedFiles.length }, binary: { data: binary[binaryKey] } });\n}\nif (items.length === 0) throw new Error('바이너리 데이터를 찾을 수 없습니다.');\nreturn items;"
+      },
+      "id": "e88aa252-9df2-46d4-9911-ee256bfebc63",
+      "name": "파일 정규화4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "2f25e767-97c4-4167-b495-4ae8099a1cf0",
+      "name": "Gemini 파일 업로드4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        896,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nconst uploadResults = $input.all();\nconst originalItems = $('파일 정규화4').all();\nfor (let i = 0; i < uploadResults.length; i++) {\n  const uploadItem = uploadResults[i];\n  const originalItem = originalItems[i] || { json: {} };\n  const fileUri = uploadItem.json?.file?.uri;\n  const filename = originalItem.json.filename || `file_${i + 1}.pdf`;\n  const fileIndex = originalItem.json.fileIndex ?? i;\n  const agencyName = originalItem.json.agencyName ?? '';\n  if (!fileUri) throw new Error(`[${filename}] 파일 업로드 응답에 URI가 없습니다. 응답: ${JSON.stringify(uploadItem.json)}`);\n  const geminiRequestBody = {\n    contents: [{ parts: [\n      { file_data: { mime_type: 'application/pdf', file_uri: fileUri } },\n      { text: `파일명: \"${filename}\"\\n\\n이 PDF 파일의 전체 내용을 텍스트로 상세히 추출해주세요.\\n- 표가 있으면 표의 내용을 텍스트로 정리해주세요.\\n- 이미지·그래픽이 있으면 그 내용과 의미를 설명해주세요.\\n- 원문에 충실하게 추출하되, 레이아웃·페이지 구분 마크업은 생략해도 됩니다.\\n- 최대한 완전하게 추출해주세요.` }\n    ]}],\n    generationConfig: { maxOutputTokens: 8192 }\n  };\n  results.push({ json: { fileIndex, filename, agencyName, fileUri, geminiRequestBody } });\n}\nreturn results;"
+      },
+      "id": "0ea3675a-c073-40b8-9853-da6ba9cd86dc",
+      "name": "Gemini 요청 조립4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.geminiRequestBody }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "c2a0ff55-7ce1-4898-94ac-1eabd13e37c6",
+      "name": "Gemini 내용 생성4",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1168,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const filename = item.json.filename ?? '파일명 없음';\n  const candidates = item.json.candidates;\n  let extractedText = '';\n  if (candidates?.[0]?.content?.parts?.[0]?.text) extractedText = candidates[0].content.parts[0].text;\n  \n  // 단순 분류 로직 제거, 모든 파일 정보를 LLM에 넘김\n  return { \n    json: { \n      fileIndex: item.json.fileIndex ?? 0, \n      filename, \n      agencyName: item.json.agencyName ?? '', \n      text: extractedText.trim().substring(0, 15000) \n    } \n  };\n});"
+      },
+      "id": "1131ad08-938d-4599-bd86-baf573aa8bc9",
+      "name": "파일 텍스트 정리4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "files",
+        "options": {}
+      },
+      "id": "9b52b190-aacf-4012-83f6-4bee87d5184a",
+      "name": "전체 취합4",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst files = inputData.files || [];\nconst agencyName = (files[0] || {}).agencyName || '';\n\n// 요약 보고서 파일(첨부7 등)과 실제 실적 자료 분리\nconst rawMaterials = [];\nconst summaryReports = [];\n\nfiles.forEach(f => {\n  if (f.filename.includes('첨부7') || f.filename.includes('정성보고서') || f.filename.includes('결과 보고서')) {\n    summaryReports.push(f);\n  } else {\n    rawMaterials.push(f);\n  }\n});\n\nconst fileContext = files.map((f, i) => {\n  return `### 파일 [${i+1}]: ${f.filename}\\n[내용 추출]\\n${f.text.substring(0, 4000)}`;\n}).join('\\n\\n');\n\nreturn [{\n  json: {\n    agencyName,\n    fileCount: files.length,\n    rawMaterialCount: rawMaterials.length,\n    summaryReportCount: summaryReports.length,\n    fileContext: fileContext.substring(0, 60000)\n  }\n}];"
+      },
+      "id": "823bf83f-9f6c-470c-95e2-6e2ebd7f51d7",
+      "name": "분류 준비4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "maxOutputTokens": 8000
+        }
+      },
+      "id": "56e0571a-6a18-4331-91d2-1e39dcbc8c46",
+      "name": "Google Gemini (Agent용)4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        2080
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "기관명: {{ $json.agencyName }}\n분석할 파일 수: 총 {{ $json.fileCount }}개\n\n【입력 데이터: 업로드된 파일의 전체 내용】\n{{ $json.fileContext }}\n\n---\n\n### 📋 정성보고서(첨부7) 작성 지시사항\n당신은 업로드된 증빙 자료들을 분석하여 '데이터기반행정 활성화 제고 노력'에 대한 정성보고서를 작성해야 합니다.\n현재 가장 큰 문제는 **\"여러 개의 실적이 있음에도 불구하고 하나로 합쳐지거나 누락되는 것\"**입니다.\n\n아래 규칙에 따라 **가능한 모든 개별 실적을 빠짐없이 발굴**하세요.\n\n#### 1. 실적 식별 및 분리 원칙 (필독)\n- **주제별 분리**: 카드뉴스의 주제와 포스터의 주제가 다르다면, 이는 **반드시 2개의 별개 실적**으로 작성해야 합니다.\n- **형태별 분리**: 제작물(굿즈, 인쇄물, 영상 등)의 종류가 다르고 추진 시기나 대상이 다르면 각각의 실적으로 인정될 가능성이 높습니다.\n- **그룹화 허용 범위**: 오직 \"동일한 하나의 과업\"(예: '카드뉴스 제작 계획'과 그 결과물인 '카드뉴스')인 경우에만 하나로 묶으십시오.\n- **보고서 파일 처리**: '첨부7'이나 '정성보고서'라는 이름의 파일은 기존에 작성된 요약본일 수 있습니다. 이 파일에만 의존하지 말고, 함께 업로드된 **개별 증빙 파일(이미지, 계획서, 포스터 등)을 직접 분석하여 누락된 실적이 없는지 확인**하세요.\n\n#### 2. 작성 항목 안내\n- **type**: 1.역량진단 결과 활용, 2.기반조성, 3.문화조성 및 성과확산, 4.인력양성, 5.기타 중 택 1\n- **title**: 실적의 핵심을 담은 제목 (예: 데이터 분석 결과 시각화 포스터 제작 및 게시, 데이터기반행정 카드뉴스 시리즈 배포)\n- **relatedFiles**: 해당 실적과 직접 연관된 파일명들을 배열로 기재\n- **background/target/content/outcome**: 파일 내용을 바탕으로 정성적으로 풍부하게 작성\n\n#### 3. 출력 형식 (JSON)\n반드시 아래 구조의 JSON으로만 출력하세요.\n\n{\n  \"achievements\": [\n    {\n      \"achievementNumber\": 1,\n      \"type\": \"...\",\n      \"title\": \"...\",\n      \"relatedFiles\": [\"...\"],\n      \"background\": \"...\",\n      \"target\": \"...\",\n      \"content\": \"...\",\n      \"outcome\": \"...\"\n    },\n    { \"achievementNumber\": 2, ... }\n  ],\n  \"summary\": \"전체적인 추진 노력에 대한 총평\"\n}\n\n**누락된 실적이 없는지 마지막으로 한 번 더 확인한 후 출력하세요.**",
+        "options": {
+          "systemMessage": "당신은 데이터기반행정 실적 분석 전문가입니다. 사용자가 업로드한 여러 파일 속에서 최대한 많은 개별 실적을 찾아내어 보고서 형식으로 정리하는 것이 당신의 사명입니다. 겹치는 활동이 아니라면 무조건 개별 실적으로 분리하세요."
+        }
+      },
+      "id": "76efcb71-9e40-40f5-b0b0-51360e4d5d08",
+      "name": "실적 분류 & 초안 작성4",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1776,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\"},\"type\":{\"type\":\"string\"},\"title\":{\"type\":\"string\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"background\":{\"type\":\"string\"},\"target\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"},\"outcome\":{\"type\":\"string\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\"}},\"required\":[\"achievements\",\"summary\"]}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        1920,
+        2112
+      ],
+      "id": "f60d6e01-0d32-4fbd-b55c-469816a934af",
+      "name": "초안 출력 파서4",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const outputRaw = $input.first().json.output;\n\nfunction extractJSON(str) {\n  if (typeof str !== 'string') return str;\n  let m = str.match(/```json\\s*([\\s\\S]*?)```/);\n  if (m) return m[1].trim();\n  m = str.match(/```\\s*([\\s\\S]*?)```/);\n  if (m) return m[1].trim();\n  const first = str.indexOf('{');\n  const last = str.lastIndexOf('}');\n  if (first !== -1 && last > first) return str.substring(first, last + 1).trim();\n  return str.trim();\n}\n\nfunction normalizeItem(item, i) {\n  const bg =\n    item.background ||\n    item.backgroundAndPurpose ||\n    item['추진배경 및 목적'] ||\n    item['추진배경및목적'] ||\n    item['추진배경'] || '';\n  return {\n    achievementNumber: item.achievementNumber || item.number || (i + 1),\n    type: item.type || item['유형'] || item['실적유형'] || '기타',\n    title: item.title || item['제목'] || item['실적명'] || item.name || '',\n    relatedFiles: item.relatedFiles || item.files || item['관련파일'] || [],\n    background: bg,\n    target: item.target || item['추진대상'] || '',\n    content: item.content || item['추진내용'] || '',\n    outcome:\n      item.outcome || item.result || item.achievementAndExpectedEffect ||\n      item.achievementResult || item['추진성과'] ||\n      item['추진성과(기대효과)'] || item['기대효과'] || ''\n  };\n}\n\nfunction normalizeData(raw) {\n  if (!raw) return { achievements: [], summary: '' };\n  if (Array.isArray(raw.achievements) && raw.achievements.length > 0) {\n    return { achievements: raw.achievements.map(normalizeItem), summary: raw.summary || '' };\n  }\n  const src =\n    raw.report || raw.results || raw['실적'] ||\n    raw['정성보고서'] || raw['추진실적'] || raw['실적목록'] || [];\n  if (Array.isArray(src) && src.length > 0) {\n    return {\n      achievements: src.map(normalizeItem),\n      summary: raw.summary || raw['요약'] || ('총 ' + src.length + '건의 실적을 작성하였습니다.')\n    };\n  }\n  return { achievements: [], summary: raw.summary || raw['요약'] || '' };\n}\n\nvar data;\ntry {\n  data = normalizeData(JSON.parse(extractJSON(outputRaw)));\n} catch(e) {\n  data = { achievements: [], summary: '⚠️ 출력 파싱 실패. (' + String(e.message) + ')\\n\\n[원본 출력 앞 500자]\\n' + String(outputRaw || '').substring(0, 500) };\n}\n\nvar achievements = data.achievements || [];\nvar html = '<!DOCTYPE html><html lang=\"ko\"><head><meta charset=\"UTF-8\"><title>첨부7 정성보고서 초안</title>';\nhtml += '<style>@media print{.no-print{display:none!important}body{margin:0}.achievement{page-break-inside:avoid}}body{font-family:\"Malgun Gothic\",sans-serif;max-width:960px;margin:20px auto;padding:24px;line-height:1.7;color:#222}h1{color:#1a3a5c;border-bottom:3px solid #2980b9;padding-bottom:12px;margin-bottom:6px}.meta{color:#666;font-size:14px;margin-bottom:8px}.print-btn{display:inline-block;background:#2980b9;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;border:none;font-size:14px;margin-bottom:20px;font-family:inherit}.achievement{background:#f8f9fa;border-left:5px solid #2980b9;margin:28px 0;padding:20px 24px;border-radius:4px}.ach-header{margin:0 0 10px 0}.ach-num{color:#1a3a5c;font-size:17px;font-weight:bold}.badge{background:#2980b9;color:#fff;padding:3px 12px;border-radius:12px;font-size:12px;margin-left:10px;vertical-align:middle}.files{color:#888;font-size:13px;margin:6px 0 14px 0}.row{display:grid;grid-template-columns:160px 1fr;gap:8px;margin:10px 0;padding:8px 0;border-bottom:1px solid #e9ecef}.row:last-child{border-bottom:none}.lbl{font-weight:bold;color:#555;font-size:14px;padding-top:2px}.val{color:#222;font-size:14px;white-space:pre-wrap}.summary{background:#e8f4fd;border:1px solid #bee3f8;padding:14px 18px;border-radius:4px;margin-bottom:24px;font-size:14px}.footer{color:#aaa;font-size:12px;margin-top:32px;padding-top:12px;border-top:1px solid #eee}</style></head><body>';\nhtml += '<h1>첨부7 정성보고서 초안</h1>';\nhtml += '<div class=\"meta\">실적 ' + achievements.length + '건 | AI 자동 생성 초안 — 반드시 검토 후 사용</div>';\nhtml += '<button class=\"print-btn no-print\" onclick=\"window.print()\">🖨️ PDF로 저장 (인쇄)</button>';\nif (data.summary) html += '<div class=\"summary\">📌 ' + data.summary + '</div>';\nachievements.forEach(function(ach, idx) {\n  var files = (ach.relatedFiles || []).join(' · ');\n  html += '<div class=\"achievement\"><div class=\"ach-header\">';\n  html += '<span class=\"ach-num\">실적 ' + (idx+1) + '. ' + (ach.title||'') + '</span>';\n  if (ach.type) html += '<span class=\"badge\">' + ach.type + '</span>';\n  html += '</div>';\n  if (files) html += '<div class=\"files\">📎 ' + files + '</div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진배경 및 목적</div><div class=\"val\">' + (ach.background||'') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진대상</div><div class=\"val\">' + (ach.target||'') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진내용</div><div class=\"val\">' + (ach.content||'') + '</div></div>';\n  html += '<div class=\"row\"><div class=\"lbl\">추진성과(기대효과)</div><div class=\"val\">' + (ach.outcome||'') + '</div></div>';\n  html += '</div>';\n});\nhtml += '<div class=\"footer\">본 초안은 AI가 생성한 것입니다. 담당자가 반드시 검토·수정 후 활용하시기 바랍니다.</div></body></html>';\nreturn [{ json: { html, achievementCount: achievements.length, summary: data.summary || '' } }];"
+      },
+      "id": "e4343698-810a-4e7d-806c-ba3f35fd08de",
+      "name": "HTML 생성4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2192,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst html = item.json.html;\nif (!html) throw new Error('html 키 없음. 사용 가능한 키: ' + Object.keys(item.json||{}).join(', '));\nconst 파일명 = item.json.파일명 || 'report';\nconst safeFileName = 파일명.replace(/[^a-zA-Z0-9가-힙_-]/g, '_');\nreturn [{ binary: { data: { data: Buffer.from(html,'utf-8').toString('base64'), mimeType:'text/html', fileName:`${safeFileName}_분석결과.html` } }, json: item.json }];"
+      },
+      "id": "4e3fa57f-d1ac-409f-9fc5-d73b89fe476b",
+      "name": "HTML 저장4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        1936
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json['지표 선택'] }}",
+                    "rightValue": "3.3.3. 활성화 제고를 위한 다양한 노력",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "584bd109-de5c-4a19-9f40-a921c2e1de92"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "지표_3_3_3"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "03f407ba-58db-4e04-ae52-4a0530f53afa",
+      "name": "지표별 분류4",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        560,
+        1904
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "formTitle": "PDF 업로드 (정성보고서 생성)",
+        "formDescription": "실적 증빙자료를 업로드하면 첨부7 정성보고서 초안을 만들어줍니다.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "기관명을 입력하세요",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "증적자료를 업로드하세요",
+              "fieldType": "file",
+              "acceptFileTypes": ".pdf",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "지표 선택",
+              "fieldType": "dropdown",
+              "defaultValue": "3.3.3. 활성화 제고를 위한 다양한 노력",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "3.3.3. 활성화 제고를 위한 다양한 노력"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "985e2c1b-2403-4bcc-bca4-23d36f1f6deb",
+      "name": "자료 업로드4",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        352,
+        1952
+      ],
+      "webhookId": "1dcae734-3f34-48d8-91ce-48f24bf081ce",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "files",
+        "options": {}
+      },
+      "id": "203b5722-11dc-46de-bafc-659f80a86ece",
+      "name": "전체 취합7",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        2656
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all().map(item => {\n  const filename = item.json.filename ?? '파일명 없음';\n  const candidates = item.json.candidates;\n  let extractedText = '';\n  if (candidates?.[0]?.content?.parts?.[0]?.text) extractedText = candidates[0].content.parts[0].text;\n  \n  // 단순 분류 로직 제거, 모든 파일 정보를 LLM에 넘김\n  return { \n    json: { \n      fileIndex: item.json.fileIndex ?? 0, \n      filename, \n      agencyName: item.json.agencyName ?? '', \n      text: extractedText.trim().substring(0, 15000) \n    } \n  };\n});"
+      },
+      "id": "9916fe71-4d28-4f08-8af6-3d96f25d9c73",
+      "name": "파일 텍스트 정리7",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        2656
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.geminiRequestBody }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "18e36b27-5176-45c7-bb90-5715a0ecdb59",
+      "name": "Gemini 내용 생성7",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        2656
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nconst uploadResults = $input.all();\nconst originalItems = $('파일 정규화7').all();\nfor (let i = 0; i < uploadResults.length; i++) {\n  const uploadItem = uploadResults[i];\n  const originalItem = originalItems[i] || { json: {} };\n  const fileUri = uploadItem.json?.file?.uri;\n  const filename = originalItem.json.filename || `file_${i + 1}.pdf`;\n  const fileIndex = originalItem.json.fileIndex ?? i;\n  const agencyName = originalItem.json.agencyName ?? '';\n  if (!fileUri) throw new Error(`[${filename}] 파일 업로드 응답에 URI가 없습니다. 응답: ${JSON.stringify(uploadItem.json)}`);\n  const geminiRequestBody = {\n    contents: [{ parts: [\n      { file_data: { mime_type: 'application/pdf', file_uri: fileUri } },\n      { text: `파일명: \"${filename}\"\\n\\n이 PDF 파일의 전체 내용을 텍스트로 상세히 추출해주세요.\\n- 표가 있으면 표의 내용을 텍스트로 정리해주세요.\\n- 이미지·그래픽이 있으면 그 내용과 의미를 설명해주세요.\\n- 원문에 충실하게 추출하되, 레이아웃·페이지 구분 마크업은 생략해도 됩니다.\\n- 최대한 완전하게 추출해주세요.` }\n    ]}],\n    generationConfig: { maxOutputTokens: 8192 }\n  };\n  results.push({ json: { fileIndex, filename, agencyName, fileUri, geminiRequestBody } });\n}\nreturn results;"
+      },
+      "id": "5fa807c6-7827-47c6-9694-c8788b51b452",
+      "name": "Gemini 요청 조립7",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        2656
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/upload/v1beta/files?uploadType=media",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "58b9e59f-43eb-4e8f-8d7d-3395d2018979",
+      "name": "Gemini 파일 업로드7",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1248,
+        2656
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItem = $input.first();\nconst agencyName = inputItem.json['기관명을 입력하세요'] || '';\nconst uploadedFiles = inputItem.json['증적자료를 업로드하세요'] || [];\nconst binary = inputItem.binary || {};\nconst binaryKeys = Object.keys(binary);\nif (uploadedFiles.length === 0) throw new Error('업로드된 파일이 없습니다.');\nconst items = [];\nfor (let i = 0; i < uploadedFiles.length; i++) {\n  const binaryKey = binaryKeys[i];\n  if (!binaryKey) continue;\n  items.push({ json: { fileIndex: i, filename: uploadedFiles[i].filename, agencyName, totalFiles: uploadedFiles.length }, binary: { data: binary[binaryKey] } });\n}\nif (items.length === 0) throw new Error('바이너리 데이터를 찾을 수 없습니다.');\nreturn items;"
+      },
+      "id": "2812d9b1-8342-4a70-8654-5ddbfd9d7abd",
+      "name": "파일 정규화7",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        2656
+      ],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "### 1. 사용자 입력\n* 설명 \n: 활성화 제고 노력 실적 업로드 및 사용자 평가지표 입력\n",
+        "height": 416,
+        "width": 454,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        624,
+        2528
+      ],
+      "id": "6425a8aa-13f2-4c8b-9e0c-d4801892e908",
+      "name": "Sticky Note16",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "{\"type\":\"object\",\"properties\":{\"achievements\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"achievementNumber\":{\"type\":\"number\"},\"type\":{\"type\":\"string\"},\"title\":{\"type\":\"string\"},\"relatedFiles\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"background\":{\"type\":\"string\"},\"target\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"},\"outcome\":{\"type\":\"string\"}},\"required\":[\"achievementNumber\",\"type\",\"title\",\"relatedFiles\",\"background\",\"target\",\"content\",\"outcome\"]}},\"summary\":{\"type\":\"string\"}},\"required\":[\"achievements\",\"summary\"]}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        1360,
+        1888
+      ],
+      "id": "989a8f5a-5cc5-4902-a080-79b4fb5ac58c",
+      "name": "초안 출력 파서8",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "maxOutputTokens": 8000
+        }
+      },
+      "id": "1026a4ed-6409-4bd6-b066-d95665455970",
+      "name": "Google Gemini (Agent용)8",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        1856
+      ],
+      "disabled": true
     }
   ],
   "connections": {
@@ -1214,6 +1961,352 @@
           }
         ]
       ]
+    },
+    "파일 정규화3": {
+      "main": [
+        [
+          {
+            "node": "Gemini 파일 업로드3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 파일 업로드3": {
+      "main": [
+        [
+          {
+            "node": "Gemini 요청 조립3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 요청 조립3": {
+      "main": [
+        [
+          {
+            "node": "Gemini 내용 생성3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 내용 생성3": {
+      "main": [
+        [
+          {
+            "node": "파일 텍스트 정리3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "파일 텍스트 정리3": {
+      "main": [
+        [
+          {
+            "node": "전체 취합3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "전체 취합3": {
+      "main": [
+        [
+          {
+            "node": "분류 준비3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "분류 준비3": {
+      "main": [
+        [
+          {
+            "node": "실적 분류 & 초안 작성3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini (Agent용)3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "실적 분류 & 초안 작성3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "실적 분류 & 초안 작성3": {
+      "main": [
+        [
+          {
+            "node": "HTML 생성3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 출력 파서3": {
+      "ai_tool": [
+        [
+          {
+            "node": "실적 분류 & 초안 작성3",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML 생성3": {
+      "main": [
+        [
+          {
+            "node": "HTML 저장3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "지표별 분류3": {
+      "main": [
+        [
+          {
+            "node": "파일 정규화3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "자료 업로드3": {
+      "main": [
+        [
+          {
+            "node": "지표별 분류3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "파일 정규화4": {
+      "main": [
+        [
+          {
+            "node": "Gemini 파일 업로드4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 파일 업로드4": {
+      "main": [
+        [
+          {
+            "node": "Gemini 요청 조립4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 요청 조립4": {
+      "main": [
+        [
+          {
+            "node": "Gemini 내용 생성4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 내용 생성4": {
+      "main": [
+        [
+          {
+            "node": "파일 텍스트 정리4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "파일 텍스트 정리4": {
+      "main": [
+        [
+          {
+            "node": "전체 취합4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "전체 취합4": {
+      "main": [
+        [
+          {
+            "node": "분류 준비4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "분류 준비4": {
+      "main": [
+        [
+          {
+            "node": "실적 분류 & 초안 작성4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini (Agent용)4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "실적 분류 & 초안 작성4",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "실적 분류 & 초안 작성4": {
+      "main": [
+        [
+          {
+            "node": "HTML 생성4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "초안 출력 파서4": {
+      "ai_tool": [
+        [
+          {
+            "node": "실적 분류 & 초안 작성4",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML 생성4": {
+      "main": [
+        [
+          {
+            "node": "HTML 저장4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "지표별 분류4": {
+      "main": [
+        [
+          {
+            "node": "파일 정규화4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "자료 업로드4": {
+      "main": [
+        [
+          {
+            "node": "지표별 분류4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "전체 취합7": {
+      "main": [
+        []
+      ]
+    },
+    "파일 텍스트 정리7": {
+      "main": [
+        [
+          {
+            "node": "전체 취합7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 내용 생성7": {
+      "main": [
+        [
+          {
+            "node": "파일 텍스트 정리7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 요청 조립7": {
+      "main": [
+        [
+          {
+            "node": "Gemini 내용 생성7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini 파일 업로드7": {
+      "main": [
+        [
+          {
+            "node": "Gemini 요청 조립7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "파일 정규화7": {
+      "main": [
+        [
+          {
+            "node": "Gemini 파일 업로드7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -1304,11 +2397,175 @@
           "item": 0
         }
       }
+    ],
+    "실적 분류 & 초안 작성2": [
+      {
+        "json": {
+          "output": "```json\n{\n  \"achievements\": [\n    {\n      \"achievementNumber\": 1,\n      \"type\": \"문화조성 및 성과확산\",\n      \"title\": \"데이터기반행정 카드뉴스 제작·배포\",\n      \"relatedFiles\": [\"데이터기반행정 카드뉴스.pdf\"],\n      \"background\": \"데이터기반행정에 대한 이해를 높이고, 기관 내 데이터 활용 문화를 확산하기 위해 카드뉴스 제작 및 배포를 기획하였습니다.\",\n      \"target\": \"전 직원을 대상으로 데이터기반행정 카드뉴스 배포\",\n      \"content\": \"데이터기반행정의 개념, 필요성, 활용 사례 등을 담은 카드뉴스를 제작하여 기관 내 이메일, 메신저, 게시판 등을 통해 배포하였습니다.\",\n      \"outcome\": \"데이터기반행정에 대한 직원들의 관심과 이해도를 높이고, 데이터 활용의 필요성에 대한 공감대를 형성하는 데 기여할 것으로 기대됩니다.\"\n    }\n  ],\n  \"summary\": \"데이터기반행정 활성화를 위해 카드뉴스 제작 및 배포를 추진하였으며, 이를 통해 데이터 활용 문화 확산 및 직원들의 이해도 증진을 기대하고 있습니다.\"\n}\n```"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "자료 업로드3": [
+      {
+        "json": {
+          "기관명을 입력하세요": "테스트5",
+          "증적자료를 업로드하세요": [
+            {
+              "filename": "2025년 한국학중앙연구원 데이터기반행정 카드 뉴스.pdf",
+              "mimetype": "application/pdf",
+              "size": 1058633
+            },
+            {
+              "filename": "2025년 한국학중앙연구원 데이터기반행정 카드뉴스 제작 계획(안).pdf",
+              "mimetype": "application/pdf",
+              "size": 112257
+            },
+            {
+              "filename": "2025년 한국학중앙연구원 분석결과 포스터 제작 계획(안).pdf",
+              "mimetype": "application/pdf",
+              "size": 49282
+            },
+            {
+              "filename": "한국학중앙연구원 분석결과 포스터.pdf",
+              "mimetype": "application/pdf",
+              "size": 542107
+            }
+          ],
+          "지표 선택": "3.3.3. 활성화 제고를 위한 다양한 노력",
+          "submittedAt": "2026-04-10T14:08:53.480+09:00",
+          "formMode": "test"
+        },
+        "binary": {
+          "_____________0": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 데이터기반행정 카드 뉴스.pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/afa9ae75-c819-4a2c-8199-d25bb51c2dbd",
+            "fileSize": "1.06 MB",
+            "bytes": 1058633
+          },
+          "_____________1": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 데이터기반행정 카드뉴스 제작 계획(안).pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/68e8d33a-5736-4027-8f0a-61dae49b6e2a",
+            "fileSize": "112 kB",
+            "bytes": 112257
+          },
+          "_____________2": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 분석결과 포스터 제작 계획(안).pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/35c7d7ab-2f0b-43ef-b73c-4b8ccba1c6e8",
+            "fileSize": "49.3 kB",
+            "bytes": 49282
+          },
+          "_____________3": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "한국학중앙연구원 분석결과 포스터.pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/57875443-c37e-4365-933f-e302ef9ad16c",
+            "fileSize": "542 kB",
+            "bytes": 542107
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "자료 업로드2": [
+      {
+        "json": {
+          "기관명을 입력하세요": "test5",
+          "증적자료를 업로드하세요": [
+            {
+              "filename": "2025년 한국학중앙연구원 데이터기반행정 카드 뉴스.pdf",
+              "mimetype": "application/pdf",
+              "size": 1058633
+            },
+            {
+              "filename": "2025년 한국학중앙연구원 데이터기반행정 카드뉴스 제작 계획(안).pdf",
+              "mimetype": "application/pdf",
+              "size": 112257
+            },
+            {
+              "filename": "2025년 한국학중앙연구원 분석결과 포스터 제작 계획(안).pdf",
+              "mimetype": "application/pdf",
+              "size": 49282
+            },
+            {
+              "filename": "한국학중앙연구원 분석결과 포스터.pdf",
+              "mimetype": "application/pdf",
+              "size": 542107
+            }
+          ],
+          "지표 선택": "4. 데이터기반행정 활용도 제고",
+          "submittedAt": "2026-04-10T14:09:42.164+09:00",
+          "formMode": "test"
+        },
+        "binary": {
+          "_____________0": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 데이터기반행정 카드 뉴스.pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/5d1fd110-1ddf-4571-acd5-1f7b380a420d",
+            "fileSize": "1.06 MB",
+            "bytes": 1058633
+          },
+          "_____________1": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 데이터기반행정 카드뉴스 제작 계획(안).pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/1028275b-73ca-474d-8b58-61be75a2e3a3",
+            "fileSize": "112 kB",
+            "bytes": 112257
+          },
+          "_____________2": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "2025년 한국학중앙연구원 분석결과 포스터 제작 계획(안).pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/03459280-ff1e-4404-bc1b-9474a116bcb0",
+            "fileSize": "49.3 kB",
+            "bytes": 49282
+          },
+          "_____________3": {
+            "mimeType": "application/pdf",
+            "fileType": "pdf",
+            "fileExtension": "pdf",
+            "data": "filesystem-v2",
+            "fileName": "한국학중앙연구원 분석결과 포스터.pdf",
+            "id": "filesystem-v2:workflows/7ljk74wFhpvgz3jy/executions/temp/binary_data/49e602e4-ec6b-4f86-af5a-fc706217187b",
+            "fileSize": "542 kB",
+            "bytes": 542107
+          }
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
     ]
   },
-  "versionId": "af6664b2-cc3d-46e6-b859-bfcb8ec6e6c7",
+  "versionId": "94275aeb-f357-45e9-87de-3c1c2881dc22",
   "activeVersionId": "b2c7801c-2ac4-4535-8dcc-e0930f59940e",
-  "versionCounter": 475,
+  "versionCounter": 493,
   "triggerCount": 3,
   "shared": [
     {
